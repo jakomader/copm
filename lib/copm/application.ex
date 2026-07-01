@@ -15,6 +15,7 @@ defmodule Copm.Application do
       # Start a worker by calling: Copm.Worker.start_link(arg)
       # {Copm.Worker, arg},
       # Start to serve requests, typically the last entry
+      Copm.Kafka.ConsumerSupervisor,
       CopmWeb.Endpoint
     ]
 
