@@ -7,6 +7,7 @@ defmodule CopmWeb.Router do
 
   pipeline :graphql do
     plug :accepts, ["json"]
+    plug CopmWeb.Plugs.RequireApiToken
   end
 
   scope "/api" do

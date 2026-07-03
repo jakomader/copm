@@ -2,9 +2,10 @@ import Config
 
 # Configure your database
 config :copm, Copm.Repo,
-  username: "postgres",
-  password: "postgres",
+  username: "copm",
+  password: "copm_dev",
   hostname: "localhost",
+  port: 5433,
   database: "copm_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,

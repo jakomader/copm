@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: copm
+      POSTGRES_PASSWORD: copm_dev
+      POSTGRES_DB: copm_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # 30 days retention for all topics by default (in ms)
+      KAFKA_LOG_RETENTION_MS: 2592000000
+      KAFKA_LOG_RETENTION_BYTES: -1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.0
+    depends_on:
+      - kafka
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      echo 'Waiting for Kafka to be ready...'
+      cub kafka-ready -b kafka:29092 1 30
+      echo 'Creating topics...'
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic info.cli     --partitions 3 --replication-factor 1 --config retention.ms=2592000000
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic info.user    --partitions 3 --replication-factor 1 --config retention.ms=2592000000
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic info.aaa     --partitions 6 --replication-factor 1 --config retention.ms=2592000000
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic info.order   --partitions 3 --replication-factor 1 --config retention.ms=2592000000
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic info.track   --partitions 6 --replication-factor 1 --config retention.ms=2592000000
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic info.payment --partitions 3 --replication-factor 1 --config retention.ms=2592000000
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic info.msg     --partitions 3 --replication-factor 1 --config retention.ms=2592000000
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic info.ipdr    --partitions 6 --replication-factor 1 --config retention.ms=2592000000
+      echo 'Topics created successfully'
+      "
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: kafka:29092
+      JVM_OPTS: "-Xms32M -Xmx64M"
+
+volumes:
+  postgres_data:
