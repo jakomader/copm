@@ -109,5 +109,213 @@ Kafka-топики: retention 30 дней
 
 ## Доступные запросы
 
+Все запросы — `POST /api/graphql`, с заголовком `Authorization: Bearer <токен>`.
 
+Я не добавлял pipeline для graphiql, так что запросы можно инициировать через curl либо через postman(или любой другой аггрегатор запросов) 
+
+### Блок 1 — Клиент
+
+```graphql
+query GetClient {
+  client(clientId: "ORG-001") {
+    clientId
+    fullName
+    inn
+    clientStatus
+    legalAddress
+    bankInfo
+    relations { fullName role position }
+    contacts { phone email }
+  }
+}
+```
+
+```graphql
+query ListClients {
+  clients(inn: "7707083893", status: "ACTIVE", limit: 20, offset: 0) {
+    clientId
+    fullName
+    clientStatus
+    registrationDate
+  }
+}
+```
+
+### Блок 2 — Пользователи ЛК + AAA
+
+```graphql
+query GetUser {
+  user(userId: "USR-001") {
+    userId
+    login
+    person
+    client { fullName }
+  }
+}
+```
+
+```graphql
+query UsersByClient {
+  usersByClient(clientId: "ORG-001") {
+    userId
+    login
+    userStartsAt
+  }
+}
+```
+
+```graphql
+query AuthEvents {
+  authEvents(userId: "USR-001", sessionId: "sess-abc", eventType: "LOGIN", limit: 50, offset: 0) {
+    id
+    sessionId
+    eventType
+    sessionTs
+    ipAddress
+    userAgent
+  }
+}
+```
+
+### Блок 3 — Заявки
+
+```graphql
+query GetOrder {
+  order(orderId: "ORD-001") {
+    orderId
+    orderStatus
+    orderType
+    cargoDescription
+    cargoWeight
+    sender
+    receiver
+    client { fullName }
+    user { login }
+  }
+}
+```
+
+```graphql
+query ListOrders {
+  orders(clientId: "ORG-001", userId: "USR-001", status: "CONFIRMED", orderType: "AIR", limit: 20, offset: 0) {
+    orderId
+    orderStatus
+    routeFrom
+    routeTo
+  }
+}
+```
+
+### Блок 4 — Трекинг
+
+```graphql
+query TrackingByOrder {
+  trackingEvents(orderId: "ORD-001") {
+    trackingId
+    statusCode
+    eventTs
+    location
+  }
+}
+```
+
+```graphql
+query GetTrackingEvent {
+  trackingEvent(trackingId: "TRK-001") {
+    trackingId
+    statusCode
+    statusDescription
+    order { orderId }
+  }
+}
+```
+
+### Блок 5 — Платежи
+
+```graphql
+query GetPayment {
+  payment(paymentId: "PAY-001") {
+    paymentId
+    amount
+    currency
+    paymentStatus
+    fromBankInfo
+    toBankInfo
+  }
+}
+```
+
+```graphql
+query ListPayments {
+  payments(orderId: "ORD-001", clientId: "ORG-001", status: "CONFIRMED", limit: 20, offset: 0) {
+    paymentId
+    amount
+    paymentStatus
+    paymentTs
+  }
+}
+```
+
+### Блок 6 — Коммуникации
+
+```graphql
+query GetConversation {
+  conversation(conversationId: "CONV-001") {
+    conversationId
+    channel
+    startsAt
+    endsAt
+    messages {
+      messageId
+      messageText
+      messageTs
+    }
+  }
+}
+```
+
+```graphql
+query ListConversations {
+  conversations(clientId: "ORG-001", userId: "USR-001", channel: "CHAT_LK", limit: 20, offset: 0) {
+    conversationId
+    channel
+    startsAt
+  }
+}
+```
+
+### Блок 7 — IPDR
+
+```graphql
+query IpdrRecords {
+  ipdrRecords(sourceIp: "192.168.1.1", fromTs: "2026-07-01T00:00:00Z", toTs: "2026-07-03T00:00:00Z", limit: 100, offset: 0) {
+    id
+    ts
+    sourceIp
+    destinationIp
+    protocol
+    bytesTransferred
+  }
+}
+```
+
+### Сквозной запрос — демонстрация связей между блоками
+
+```graphql
+query FullClientTree {
+  client(clientId: "ORG-001") {
+    fullName
+    inn
+    users {
+      login
+      authEvents { eventType sessionTs }
+    }
+    orders {
+      orderId
+      orderStatus
+      trackingEvents { statusCode eventTs }
+      payments { amount paymentStatus }
+    }
+  }
+}
 ```
