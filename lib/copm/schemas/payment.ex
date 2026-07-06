@@ -36,5 +36,8 @@ defmodule Copm.Schemas.Payment do
     |> validate_inclusion(:payment_type, ~w(INVOICE PREPAYMENT POSTPAYMENT REFUND))
     |> validate_inclusion(:payment_method, ~w(BANK_TRANSFER CARD ACCOUNT_DEBIT))
     |> validate_inclusion(:payment_status, ~w(PENDING CONFIRMED FAILED REFUNDED))
+    |> foreign_key_constraint(:order_id)
+    |> foreign_key_constraint(:client_id)
+    |> foreign_key_constraint(:user_id)
   end
 end

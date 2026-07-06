@@ -32,7 +32,7 @@ defmodule Copm.Kafka.PaymentConsumer do
 
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
-    Enum.each(messages, fn %{data: payload} ->
+    Enum.map(messages, fn %{data: payload} = message ->
       attrs = %{
         payment_id: payload["paymentId"],
         order_id: payload["orderId"],
@@ -52,15 +52,13 @@ defmodule Copm.Kafka.PaymentConsumer do
         ip_address: payload["ipAddress"]
       }
 
-    Repo.insert!(
-      Payment.changeset(%Payment{}, attrs),
-      on_conflict: {:replace_all_except, [:inserted_at]},
-      conflict_target: :payment_id
-    )
-
+      Payment.changeset(%Payment{}, attrs)
+      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: :payment_id)
+      |> case do
+        {:ok, _payment} -> message
+        {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
+      end
     end)
-
-    messages
   end
 
   defp parse_dt(nil), do: nil

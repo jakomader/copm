@@ -24,5 +24,7 @@ defmodule Copm.Schemas.Message do
     msg
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
+    |> foreign_key_constraint(:conversation_id)
+    |> foreign_key_constraint(:related_order_id)
   end
 end

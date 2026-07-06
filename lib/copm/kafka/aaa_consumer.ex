@@ -33,7 +33,7 @@ defmodule Copm.Kafka.AaaConsumer do
 
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
-    Enum.each(messages, fn %{data: payload} ->
+    Enum.map(messages, fn %{data: payload} = message ->
       attrs = %{
         user_id: payload["userId"],
         session_id: payload["sessionId"],
@@ -45,10 +45,13 @@ defmodule Copm.Kafka.AaaConsumer do
         geolocation: payload["geolocation"]
       }
 
-      Repo.insert!(AuthEvent.changeset(%AuthEvent{}, attrs))
+      AuthEvent.changeset(%AuthEvent{}, attrs)
+      |> Repo.insert()
+      |> case do
+        {:ok, _event} -> message
+        {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
+      end
     end)
-
-    messages
   end
 
   defp parse_dt(nil), do: nil

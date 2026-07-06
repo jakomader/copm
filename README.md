@@ -46,12 +46,6 @@
 - **Авторизация:** API-токены (SHA-256 хэш, `Authorization: Bearer`)
 - **Инфраструктура:** Docker Compose (Kafka, Zookeeper, PostgreSQL, Kafdrop)
 
-## Требования
-
-- Elixir / Erlang OTP
-- Docker + Docker Compose
-- [mise](https://mise.jdx.dev/) (для сборки нативных Kafka-зависимостей нужен `cmake`)
-
 ## Запуск
 
 ```bash
@@ -64,7 +58,7 @@ mix deps.get
 mix ecto.setup
 
 mix copm.gen_token "my-operator"
-# Токен выводится один раз - сохрани его, восстановить нельзя
+
 
 mix phx.server
 ```
@@ -78,22 +72,6 @@ mix phx.server
 Authorization: Bearer <токен из mix copm.gen_token>
 ```
 
-Пример запроса:
-
-```graphql
-query {
-  client(clientId: "ORG-001") {
-    fullName
-    inn
-    orders {
-      orderId
-      orderStatus
-      trackingEvents { statusCode eventTs }
-      payments { amount paymentStatus }
-    }
-  }
-}
-```
 
 ## Мониторинг Kafka
 

@@ -3,7 +3,7 @@ defmodule Copm.Auth.ApiToken do
   import Ecto.Changeset
 
   schema "api_tokens" do
-    field :name, :string
+    belongs_to :operator, Copm.Schemas.Operators
     field :token_hash, :string
     field :revoked_at, :utc_datetime
 
@@ -12,8 +12,8 @@ defmodule Copm.Auth.ApiToken do
 
   def changeset(token, attrs) do
     token
-    |> cast(attrs, [:name, :token_hash, :revoked_at])
-    |> validate_required([:name, :token_hash])
+    |> cast(attrs, [:operator_id, :token_hash, :revoked_at])
+    |> validate_required([:operator_id, :token_hash])
     |> unique_constraint(:token_hash)
   end
 end

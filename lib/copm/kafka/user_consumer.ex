@@ -33,7 +33,7 @@ defmodule Copm.Kafka.UserConsumer do
 
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
-    Enum.each(messages, fn %{data: payload} ->
+    Enum.map(messages, fn %{data: payload} = message ->
       attrs = %{
         user_id: payload["userId"],
         client_id: payload["clientId"],
@@ -42,13 +42,14 @@ defmodule Copm.Kafka.UserConsumer do
         user_starts_at: parse_dt(payload["userStartsAt"]),
         user_ends_at: parse_dt(payload["userEndsAt"])
       }
-      Repo.insert!(User.changeset(%User{}, attrs),
-      on_conflict: {:replace_all_except, [:inserted_at]},
-      conflict_target: :user_id
-      )
-    end)
 
-    messages
+      User.changeset(%User{}, attrs)
+      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: :user_id)
+      |> case do
+        {:ok, _user} -> message
+        {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
+      end
+    end)
   end
 
   defp parse_dt(nil), do: nil

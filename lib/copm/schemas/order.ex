@@ -49,5 +49,7 @@ defmodule Copm.Schemas.Order do
     |> validate_required(@required)
     |> validate_inclusion(:order_status, ~w(CREATED CONFIRMED IN_TRANSIT DELIVERED CANCELLED))
     |> validate_inclusion(:order_type, ~w(AIR AUTO MULTIMODAL INTERNATIONAL))
+    |> foreign_key_constraint(:client_id)
+    |> foreign_key_constraint(:user_id)
   end
 end

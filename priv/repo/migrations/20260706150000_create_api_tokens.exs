@@ -3,7 +3,7 @@ defmodule Copm.Repo.Migrations.CreateApiTokens do
 
   def change do
     create table(:api_tokens) do
-      add :name, :string, null: false
+      add :operator_id, references(:operators, on_delete: :delete_all), null: false
       add :token_hash, :string, null: false
       add :revoked_at, :utc_datetime
 
@@ -11,5 +11,6 @@ defmodule Copm.Repo.Migrations.CreateApiTokens do
     end
 
     create unique_index(:api_tokens, [:token_hash])
+    create index(:api_tokens, [:operator_id])
   end
 end

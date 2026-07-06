@@ -28,5 +28,6 @@ defmodule Copm.Schemas.User do
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
     |> unique_constraint(:login)
+    |> foreign_key_constraint(:client_id)
   end
 end

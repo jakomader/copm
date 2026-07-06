@@ -37,14 +37,14 @@ defmodule Copm.Kafka.IpdrConsumer do
         %{
           ts: parse_dt(payload["ts"]),
           source_ip: payload["sourceIp"],
-          source_port: payload["sourcePort"],
+          source_port: parse_int(payload["sourcePort"]),
           destination_ip: payload["destinationIp"],
-          destination_port: payload["destinationPort"],
+          destination_port: parse_int(payload["destinationPort"]),
           protocol: payload["protocol"],
           flag: payload["flag"],
-          bytes_transferred: payload["bytesTransferred"],
-          inserted_at: DateTime.utc_now() |> DateTime.truncate(:second),
-          updated_at: DateTime.utc_now() |> DateTime.truncate(:second)
+          bytes_transferred: parse_int(payload["bytesTransferred"]),
+          inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
+          updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
         }
       end)
 
@@ -54,6 +54,10 @@ defmodule Copm.Kafka.IpdrConsumer do
 
   defp parse_dt(nil), do: nil
   defp parse_dt(dt), do: DateTime.from_iso8601(dt) |> elem(1)
+
+  defp parse_int(nil), do: nil
+  defp parse_int(value) when is_integer(value), do: value
+  defp parse_int(value) when is_binary(value), do: String.to_integer(value)
 
   defp kafka_hosts do
     Application.get_env(:copm, :kafka_hosts, [{"localhost", 9092}])

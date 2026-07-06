@@ -56,7 +56,13 @@ defmodule Copm.MixProject do
       {:dataloader, "~> 2.0"},
       #kafka
       {:broadway, "~> 1.1"},
-      {:broadway_kafka, "~> 0.4"}
+      {:broadway_kafka, "~> 0.4"},
+      {:brod, "~> 4.5"},
+      {:nimble_csv, "~> 1.3"},
+      #auth
+      {:bcrypt_elixir, "~> 3.3"},
+      #web ui
+      {:phoenix_live_view, "~> 1.0"}
     ]
   end
 

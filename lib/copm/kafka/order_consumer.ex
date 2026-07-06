@@ -34,7 +34,7 @@ defmodule Copm.Kafka.OrderConsumer do
   @impl true
 
   def handle_batch(_batcher, messages, _batch_info, _context) do
-    Enum.each(messages, fn %{data: payload} ->
+    Enum.map(messages, fn %{data: payload} = message ->
       attrs = %{
         order_id: payload["orderId"],
         contract_id: payload["contractId"],
@@ -65,14 +65,13 @@ defmodule Copm.Kafka.OrderConsumer do
         actual_delivery_date: parse_date(payload["actualDeliveryDate"])
       }
 
-    Repo.insert!(
-      Order.changeset(%Order{}, attrs),
-      on_conflict: {:replace_all_except, [:inserted_at]},
-      conflict_target: :order_id
-    )
+      Order.changeset(%Order{}, attrs)
+      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: :order_id)
+      |> case do
+        {:ok, _order} -> message
+        {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
+      end
     end)
-
-    messages
   end
 
   defp parse_dt(nil), do: nil

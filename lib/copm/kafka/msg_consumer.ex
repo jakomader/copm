@@ -32,7 +32,7 @@ defmodule Copm.Kafka.MsgConsumer do
 
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
-    Enum.each(messages, fn %{data: payload} ->
+    Enum.map(messages, fn %{data: payload} = message ->
       conversation_attrs = %{
         conversation_id: payload["conversationId"],
         client_id: payload["clientId"],
@@ -43,30 +43,37 @@ defmodule Copm.Kafka.MsgConsumer do
         channel: payload["channel"]
       }
 
-    Repo.insert!(
-      Conversation.changeset(%Conversation{}, conversation_attrs),
-      on_conflict: {:replace_all_except, [:inserted_at]},
-      conflict_target: :conversation_id
-    )
-    msg_attrs = %{
-        message_id: payload["messageId"],
-        conversation_id: payload["conversationId"],
-        message_ts: parse_dt(payload["messageTs"]),
-        message_text: payload["messageText"],
-        attachments: payload["attachments"],
-        operator_login: payload["operatorLogin"],
-        ip_address: payload["ipAddress"],
-        related_order_id: payload["relatedOrderId"]
-    }
+      conversation_result =
+        Conversation.changeset(%Conversation{}, conversation_attrs)
+        |> Repo.insert(
+          on_conflict: {:replace_all_except, [:inserted_at]},
+          conflict_target: :conversation_id
+        )
 
-    Repo.insert!(
-      Message.changeset(%Message{}, msg_attrs),
-      on_conflict: :nothing,
-      conflict_target: :message_id
-    )
+      case conversation_result do
+        {:error, changeset} ->
+          Broadway.Message.failed(message, inspect(changeset.errors))
+
+        {:ok, _conversation} ->
+          msg_attrs = %{
+            message_id: payload["messageId"],
+            conversation_id: payload["conversationId"],
+            message_ts: parse_dt(payload["messageTs"]),
+            message_text: payload["messageText"],
+            attachments: payload["attachments"],
+            operator_login: payload["operatorLogin"],
+            ip_address: payload["ipAddress"],
+            related_order_id: payload["relatedOrderId"]
+          }
+
+          Message.changeset(%Message{}, msg_attrs)
+          |> Repo.insert(on_conflict: :nothing, conflict_target: :message_id)
+          |> case do
+            {:ok, _msg} -> message
+            {:error, changeset} -> Broadway.Message.failed(message, inspect(changeset.errors))
+          end
+      end
     end)
-
-    messages
   end
 
   defp parse_dt(nil), do: nil

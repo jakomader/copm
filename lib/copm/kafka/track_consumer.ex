@@ -33,7 +33,7 @@ defmodule Copm.Kafka.TrackConsumer do
 
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
-    Enum.each(messages, fn %{data: payload} ->
+    Enum.map(messages, fn %{data: payload} = message ->
       attrs = %{
         tracking_id: payload["trackingId"],
         order_id: payload["orderId"],
@@ -44,13 +44,14 @@ defmodule Copm.Kafka.TrackConsumer do
         operator_id: payload["operatorId"],
         scanned_device_id: payload["scannedDeviceId"]
       }
-      Repo.insert!(TrackingEvent.changeset(%TrackingEvent{}, attrs),
-      on_conflict: :nothing,
-      conflict_target: :tracking_id
-      )
-    end)
 
-    messages
+      TrackingEvent.changeset(%TrackingEvent{}, attrs)
+      |> Repo.insert(on_conflict: :nothing, conflict_target: :tracking_id)
+      |> case do
+        {:ok, _event} -> message
+        {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
+      end
+    end)
   end
 
   defp parse_dt(nil), do: nil
