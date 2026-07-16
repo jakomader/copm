@@ -11,6 +11,7 @@ defmodule Copm.CsvSwallower do
     "info.msg" => "messageId",
     "info.ipdr" => "sourceIp"
   }
+  def key_field(top), do: @key_fields[top]
   def ingest(file) do
     case Producer.start_client() do
       :ok ->

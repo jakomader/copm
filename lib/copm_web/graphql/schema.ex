@@ -9,6 +9,7 @@ defmodule CopmWeb.GraphQL.Schema do
   import_types CopmWeb.GraphQL.Types.PaymentTypes
   import_types CopmWeb.GraphQL.Types.CommunicationTypes
   import_types CopmWeb.GraphQL.Types.IpdrTypes
+  import_types CopmWeb.GraphQL.Types.SessionTypes
   #json scalar for map fields
   scalar :json do
     description "Arbitrary JSON"
@@ -25,6 +26,11 @@ defmodule CopmWeb.GraphQL.Schema do
     import_fields :communication_queries
     import_fields :ipdr_queries
   end
+  mutation do
+    import_fields :session_mutations
+    import_fields :user_mutations
+  end
+
   def context(ctx) do
     loader =
       Dataloader.new()
@@ -37,6 +43,27 @@ defmodule CopmWeb.GraphQL.Schema do
     [Absinthe.Middleware.Dataloader | Absinthe.Plugin.defaults()]
   end
 
+  def middleware(middleware, %{identifier: field}, %{identifier: :mutation})
+  when field in [:user_create, :user_update, :user_block, :user_delete] do
+    [{CopmWeb.Graphql.Middleware.RequireRole, ["admin"]}, CopmWeb.Graphql.Middleware.RequireAuth] ++ middleware
+  end
+
+
+  def middleware(middleware, %{identifier: field}, %{identifier: :mutation})
+  when field in [:session_create, :session_refresh] do
+    middleware
+  end
+
+  def middleware(middleware, _field, %{identifier: :mutation}) do
+
+    [CopmWeb.Graphql.Middleware.RequireAuth | middleware]
+  end
+  def middleware(middleware, _field, %{identifier: :query}) do
+    [{CopmWeb.Graphql.Middleware.RequireRole, ["admin", "queries_only"]}, CopmWeb.Graphql.Middleware.RequireAuth | middleware]
+  end
+  def middleware(middleware, _field, _opts), do: middleware
+
+#У меня сейчас во второй clause проходят все вложенные структуры.
   defp parse_json(%Absinthe.Blueprint.Input.String{value: value}) do
     case Jason.decode(value) do
       {:ok, result} -> {:ok, result}

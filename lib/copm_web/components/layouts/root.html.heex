@@ -4,7 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={Phoenix.Controller.get_csrf_token()} />
+    <link rel="icon" type="image/png" href={~p"/settings.png"} />
     <title>Copm</title>
+    <script defer src={~p"/js/phoenix_html.js"}>
+    </script>
     <script defer src={~p"/js/phoenix.min.js"}>
     </script>
     <script defer src={~p"/js/phoenix_live_view.min.js"}>
@@ -18,8 +21,20 @@
           .querySelector("meta[name='csrf-token']")
           .getAttribute("content");
 
+        let Hooks = {
+          AutoDismissFlash: {
+            mounted() {
+              this.timer = setTimeout(() => this.el.click(), 4000);
+            },
+            destroyed() {
+              clearTimeout(this.timer);
+            }
+          }
+        };
+
         let liveSocket = new window.LiveView.LiveSocket("/live", window.Phoenix.Socket, {
-          params: { _csrf_token: csrfToken }
+          params: { _csrf_token: csrfToken },
+          hooks: Hooks
         });
 
         liveSocket.connect();

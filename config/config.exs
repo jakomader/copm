@@ -32,7 +32,9 @@ config :phoenix, :json_library, Jason
 
 
 config :copm,
-  kafka_hosts: [{"localhost", 9092}]
+  kafka_hosts: [{"localhost", 9092}],
+  refresh_token_ttl: 30* 24 * 60 * 60,
+  access_token_ttl: 15 * 60
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

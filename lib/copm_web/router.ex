@@ -1,13 +1,19 @@
 defmodule CopmWeb.Router do
   use CopmWeb, :router
 
-  pipeline :api do
+
+  pipeline :ingest do
     plug :accepts, ["json"]
+    plug CopmWeb.DataProviderCheck
   end
 
+  pipeline :openapi do
+    plug :accepts, ["json"]
+    plug OpenApiSpex.Plug.PutApiSpec, module: CopmWeb.ApiSpec
+  end
   pipeline :graphql do
     plug :accepts, ["json"]
-    plug CopmWeb.Plugs.RequireApiToken
+    plug CopmWeb.Plugs.GenGraphQlContext
   end
 
   pipeline :browser do
@@ -27,13 +33,30 @@ defmodule CopmWeb.Router do
 
   end
   scope "/api", CopmWeb do
-    pipe_through :api
+    pipe_through :ingest
+    post "/ingest/csv", IngestController, :create_file
+    post "/ingest/:topic", IngestController, :create
+    get "/ingest/:topic/:id", IngestController, :show
+  end
+
+  scope "/api" do
+    pipe_through :openapi
+    get "/openapi", OpenApiSpex.Plug.RenderSpec, []
+  end
+
+  scope "/" do
+    pipe_through :openapi
+    get "/swaggerui", OpenApiSpex.Plug.SwaggerUI, path: "/api/openapi"
   end
 
   scope "/", CopmWeb do
     pipe_through :browser
+    get "/", RedirectToLogin, :redirect_to_login
     get "/session/new", SessionController, :create
+    get "/logout", LogoutController, :delete
     live "/login", LoginLive
-    live "/upload", UploadLive
+    live "/admin/operators", OperatorLive
+    live "/admin/operators/new", OperatorFormLive, :new
+    live "/admin/operators/:id/edit", OperatorFormLive, :edit
   end
 end

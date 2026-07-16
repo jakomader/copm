@@ -62,7 +62,9 @@ defmodule Copm.MixProject do
       #auth
       {:bcrypt_elixir, "~> 3.3"},
       #web ui
-      {:phoenix_live_view, "~> 1.0"}
+      {:phoenix_live_view, "~> 1.0"},
+      #swagger
+      {:open_api_spex, "~> 3.0"}
     ]
   end
 

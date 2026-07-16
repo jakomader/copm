@@ -10,7 +10,7 @@ defmodule Copm.Repo.Migrations.CreateApiTokens do
       timestamps()
     end
 
-    create unique_index(:api_tokens, [:token_hash])
     create index(:api_tokens, [:operator_id])
+    create unique_index(:api_tokens, [:token_hash])
   end
 end
