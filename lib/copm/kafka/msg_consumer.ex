@@ -40,14 +40,15 @@ defmodule Copm.Kafka.MsgConsumer do
         session_id: payload["sessionId"],
         starts_at: parse_dt(payload["startsAt"]),
         ends_at: parse_dt(payload["endsAt"]),
-        channel: payload["channel"]
+        channel: payload["channel"],
+        org_id: payload["orgId"]
       }
 
       conversation_result =
         Conversation.changeset(%Conversation{}, conversation_attrs)
         |> Repo.insert(
           on_conflict: {:replace_all_except, [:inserted_at]},
-          conflict_target: :conversation_id
+          conflict_target: [:org_id, :conversation_id]
         )
 
       case conversation_result do
@@ -63,11 +64,12 @@ defmodule Copm.Kafka.MsgConsumer do
             attachments: payload["attachments"],
             operator_login: payload["operatorLogin"],
             ip_address: payload["ipAddress"],
-            related_order_id: payload["relatedOrderId"]
+            related_order_id: payload["relatedOrderId"],
+            org_id: payload["orgId"]
           }
 
           Message.changeset(%Message{}, msg_attrs)
-          |> Repo.insert(on_conflict: :nothing, conflict_target: :message_id)
+          |> Repo.insert(on_conflict: :nothing, conflict_target: [:org_id, :message_id])
           |> case do
             {:ok, _msg} -> message
             {:error, changeset} -> Broadway.Message.failed(message, inspect(changeset.errors))

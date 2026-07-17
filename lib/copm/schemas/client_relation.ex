@@ -2,10 +2,11 @@ defmodule Copm.Schemas.ClientRelation do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Copm.Schemas.Client
+  alias Copm.Schemas.{Client, Organizations}
 
   schema "client_relations" do
     belongs_to :client, Client, foreign_key: :client_id, references: :client_id, type: :string
+    belongs_to :organization, Organizations, foreign_key: :org_id
     field :full_name, :string
     field :inn, :string
     field :position, :string
@@ -17,7 +18,7 @@ defmodule Copm.Schemas.ClientRelation do
 
   end
 
-  @required ~w(client_id full_name inn position role)a
+  @required ~w(client_id org_id full_name inn position role)a
   @optional ~w(date_begin date_end)a
 
 
@@ -26,6 +27,8 @@ defmodule Copm.Schemas.ClientRelation do
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
     |> validate_inclusion(:role, ~w(SENDER RECEIVER PAYER))
+    |> foreign_key_constraint(:org_id)
+    |> foreign_key_constraint(:client_id, name: :client_relations_org_client_fkey)
   end
 
 end

@@ -5,8 +5,8 @@ defmodule Copm.Repo.Migrations.CreateOrders do
     create table(:orders, primary_key: false) do
       add :order_id, :string, primary_key: true
       add :contract_id, :string, null: false
-      add :client_id, references(:clients, column: :client_id, type: :string, on_delete: :restrict), null: false
-      add :user_id, references(:users, column: :user_id, type: :string, on_delete: :restrict), null: false
+      add :client_id, :string, null: false
+      add :user_id, :string, null: false
       add :order_status, :string, null: false
       add :order_type, :string, null: false
       add :created_at, :utc_datetime, null: false
@@ -30,6 +30,7 @@ defmodule Copm.Repo.Migrations.CreateOrders do
       add :customs_info, :map
       add :estimated_delivery_date, :date, null: false
       add :actual_delivery_date, :date, null: false
+      add :org_id, references(:organizations), null: false, primary_key: true
 
       timestamps()
     end
@@ -38,5 +39,16 @@ defmodule Copm.Repo.Migrations.CreateOrders do
     create index(:orders, [:user_id])
     create index(:orders, [:order_status])
     create index(:orders, [:created_at])
+    create index(:orders, [:org_id])
+
+    execute(
+      "ALTER TABLE orders ADD CONSTRAINT orders_org_client_fkey FOREIGN KEY (org_id, client_id) REFERENCES clients (org_id, client_id) ON DELETE RESTRICT",
+      "ALTER TABLE orders DROP CONSTRAINT orders_org_client_fkey"
+    )
+
+    execute(
+      "ALTER TABLE orders ADD CONSTRAINT orders_org_user_fkey FOREIGN KEY (org_id, user_id) REFERENCES users (org_id, user_id) ON DELETE RESTRICT",
+      "ALTER TABLE orders DROP CONSTRAINT orders_org_user_fkey"
+    )
   end
 end

@@ -57,13 +57,14 @@ defmodule Copm.Kafka.CliConsumer do
       reg_country_code: payload["regCountryCode"],
       is_foreign: payload["isForeign"] || false,
       economic_sector: payload["economicSector"],
-      bank_info: payload["bankInfo"]
+      bank_info: payload["bankInfo"],
+      org_id: payload["orgId"]
     }
 
     Repo.insert!(
       Client.changeset(%Client{}, client_attrs),
       on_conflict: {:replace_all_except, [:inserted_at]},
-      conflict_target: :client_id
+      conflict_target: [:org_id, :client_id]
     )
 
     client_id = payload["clientId"]
@@ -72,6 +73,7 @@ defmodule Copm.Kafka.CliConsumer do
       Repo.insert!(
         ClientRelation.changeset(%ClientRelation{}, %{
           client_id: client_id,
+          org_id: payload["orgId"],
           full_name: rel["fullName"],
           inn: rel["inn"],
           position: rel["position"],
@@ -87,6 +89,7 @@ defmodule Copm.Kafka.CliConsumer do
       Repo.insert!(
         ClientContact.changeset(%ClientContact{}, %{
           client_id: client_id,
+          org_id: payload["orgId"],
           phone: contact["phone"],
           email: contact["email"]
         }),

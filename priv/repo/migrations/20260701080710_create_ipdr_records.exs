@@ -11,11 +11,13 @@ defmodule Copm.Repo.Migrations.CreateIpdrRecords do
       add :protocol, :string, null: false
       add :flag, :string
       add :bytes_transferred, :bigint, null: false
+      add :org_id, references(:organizations), null: false
 
       timestamps()
     end
 
     create index(:ipdr_records, [:ts])
     create index(:ipdr_records, [:source_ip])
+    create index(:ipdr_records, [:org_id])
   end
 end

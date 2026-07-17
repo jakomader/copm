@@ -2,13 +2,15 @@ defmodule Copm.Schemas.Payment do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Copm.Schemas.{Order, Client, User}
+  alias Copm.Schemas.{Order, Client, User, Organizations}
 
-  @primary_key {:payment_id, :string, autogenerate: false}
+  @primary_key false
   schema "payments" do
+    field :payment_id, :string, primary_key: true
     belongs_to :order, Order, foreign_key: :order_id, references: :order_id, type: :string
     belongs_to :client, Client, foreign_key: :client_id, references: :client_id, type: :string
     belongs_to :user, User, foreign_key: :user_id, references: :user_id, type: :string
+    belongs_to :organization, Organizations, foreign_key: :org_id, primary_key: true
     field :payment_ts, :utc_datetime
     field :payment_type, :string
     field :payment_method, :string
@@ -26,7 +28,7 @@ defmodule Copm.Schemas.Payment do
 
   end
 
-  @required ~w(payment_id order_id client_id user_id payment_ts payment_type payment_method amount currency invoice_number from_bank_info to_bank_info payment_status session_id ip_address)a
+  @required ~w(payment_id order_id client_id user_id org_id payment_ts payment_type payment_method amount currency invoice_number from_bank_info to_bank_info payment_status session_id ip_address)a
   @optional ~w(external_payment_id)a
 
   def changeset(payment, attrs) do
@@ -36,8 +38,9 @@ defmodule Copm.Schemas.Payment do
     |> validate_inclusion(:payment_type, ~w(INVOICE PREPAYMENT POSTPAYMENT REFUND))
     |> validate_inclusion(:payment_method, ~w(BANK_TRANSFER CARD ACCOUNT_DEBIT))
     |> validate_inclusion(:payment_status, ~w(PENDING CONFIRMED FAILED REFUNDED))
-    |> foreign_key_constraint(:order_id)
-    |> foreign_key_constraint(:client_id)
-    |> foreign_key_constraint(:user_id)
+    |> foreign_key_constraint(:order_id, name: :payments_org_order_fkey)
+    |> foreign_key_constraint(:client_id, name: :payments_org_client_fkey)
+    |> foreign_key_constraint(:user_id, name: :payments_org_user_fkey)
+    |> foreign_key_constraint(:org_id)
   end
 end

@@ -37,8 +37,9 @@ defmodule CopmWeb.IngestController do
 
   def create(conn, %{"topic" => topic} = params) do
     kafka_topic = "info." <> topic
-    payload = Map.drop(params, ["topic"])
-
+    payload =
+      Map.drop(params, ["topic"])
+      |> Map.put("orgId", conn.assigns.current_operator.org_id)
     with true <- kafka_topic in CsvSwallower.Csv.topics(),
          key when not is_nil(key) <- Map.get(payload, CsvSwallower.key_field(kafka_topic)),
          :ok <- Producer.start_client(),
@@ -70,7 +71,7 @@ defmodule CopmWeb.IngestController do
   )
 
   def create_file(conn, %{"file" => %Plug.Upload{path: path}}) do
-    case CsvSwallower.ingest(path) do
+    case CsvSwallower.ingest(path, conn.assigns.current_operator.org_id) do
       {:error, reason} ->
         conn |> put_status(:bad_gateway) |> json(%{error: inspect(reason)})
 
@@ -109,9 +110,10 @@ defmodule CopmWeb.IngestController do
 
   def show(conn, %{"topic" => topic, "id" => id}) do
     kafka_topic = "info." <> topic
+    org_id = conn.assigns.current_operator.org_id
 
     with {module, field} <- schema_for(kafka_topic),
-         record when not is_nil(record) <- Copm.Repo.get_by(module, [{field, id}]) do
+         record when not is_nil(record) <- Copm.Repo.get_by(module, [{field, id}, {:org_id, org_id}]) do
       conn |> put_status(:ok) |> json(%{status: "processed"})
     else
       nil -> conn |> put_status(:not_found) |> json(%{status: "not_found"})

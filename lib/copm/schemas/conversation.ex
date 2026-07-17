@@ -2,23 +2,25 @@ defmodule Copm.Schemas.Conversation do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Copm.Schemas.{Client, User, Message}
+  alias Copm.Schemas.{Client, User, Message, Organizations}
 
-  @primary_key {:conversation_id, :string, autogenerate: false}
+  @primary_key false
   schema "conversations" do
+    field :conversation_id, :string, primary_key: true
     belongs_to :client, Client, foreign_key: :client_id, references: :client_id, type: :string
     belongs_to :user, User, foreign_key: :user_id, references: :user_id, type: :string
+    belongs_to :organization, Organizations, foreign_key: :org_id, primary_key: true
     field :session_id, :string
     field :starts_at, :utc_datetime
     field :ends_at, :utc_datetime
     field :channel, :string
 
-    has_many :messages, Message, foreign_key: :conversation_id
+    has_many :messages, Message, foreign_key: :conversation_id, references: :conversation_id
 
     timestamps()
   end
 
-  @required ~w(conversation_id client_id user_id session_id starts_at channel)a
+  @required ~w(conversation_id client_id user_id org_id session_id starts_at channel)a
   @optional ~w(ends_at)a
 
   def changeset(conv, attrs) do
@@ -26,7 +28,8 @@ defmodule Copm.Schemas.Conversation do
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
     |> validate_inclusion(:channel, ~w(CHAT_LK EMAIL PHONE MESSENGER))
-    |> foreign_key_constraint(:client_id)
-    |> foreign_key_constraint(:user_id)
+    |> foreign_key_constraint(:client_id, name: :conversations_org_client_fkey)
+    |> foreign_key_constraint(:user_id, name: :conversations_org_user_fkey)
+    |> foreign_key_constraint(:org_id)
   end
 end

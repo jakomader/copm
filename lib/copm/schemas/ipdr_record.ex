@@ -2,7 +2,10 @@ defmodule Copm.Schemas.IpdrRecord do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Copm.Schemas.Organizations
+
   schema "ipdr_records" do
+    belongs_to :organization, Organizations, foreign_key: :org_id
     field :ts, :utc_datetime
     field :source_ip, :string
     field :source_port, :integer
@@ -15,7 +18,7 @@ defmodule Copm.Schemas.IpdrRecord do
     timestamps()
   end
 
-  @required ~w(ts source_ip source_port destination_ip destination_port protocol bytes_transferred)a
+  @required ~w(org_id ts source_ip source_port destination_ip destination_port protocol bytes_transferred)a
   @optional ~w(flag)a
 
   def changeset(record, attrs) do
@@ -24,5 +27,6 @@ defmodule Copm.Schemas.IpdrRecord do
     |> validate_required(@required)
     |> validate_inclusion(:protocol, ~w(TCP UDP))
     |> validate_inclusion(:flag, ~w(SYN FIN))
+    |> foreign_key_constraint(:org_id)
   end
 end

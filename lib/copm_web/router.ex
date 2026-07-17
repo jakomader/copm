@@ -58,5 +58,7 @@ defmodule CopmWeb.Router do
     live "/admin/operators", OperatorLive
     live "/admin/operators/new", OperatorFormLive, :new
     live "/admin/operators/:id/edit", OperatorFormLive, :edit
+    live "/admin/orgs", OrgLive
+    live "/admin/orgs/new", OrgFormLive, :new
   end
 end

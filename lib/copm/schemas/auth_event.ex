@@ -2,10 +2,11 @@ defmodule Copm.Schemas.AuthEvent do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Copm.Schemas.User
+  alias Copm.Schemas.{User, Organizations}
 
   schema "auth_events" do
     belongs_to :user, User, foreign_key: :user_id, references: :user_id, type: :string
+    belongs_to :organization, Organizations, foreign_key: :org_id
     field :session_id, :string
     field :session_ts, :utc_datetime
     field :event_type, :string
@@ -17,7 +18,7 @@ defmodule Copm.Schemas.AuthEvent do
     timestamps()
   end
 
-  @required ~w(user_id session_id session_ts event_type ip_address user_agent)a
+  @required ~w(user_id org_id session_id session_ts event_type ip_address user_agent)a
   @optional ~w(device_id geolocation)a
 
   def changeset(event, attrs) do
@@ -25,6 +26,7 @@ defmodule Copm.Schemas.AuthEvent do
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
     |> validate_inclusion(:event_type, ~w(LOGIN LOGOUT PASSWORD_CHANGE))
-    |> foreign_key_constraint(:user_id)
+    |> foreign_key_constraint(:user_id, name: :auth_events_org_user_fkey)
+    |> foreign_key_constraint(:org_id)
   end
 end

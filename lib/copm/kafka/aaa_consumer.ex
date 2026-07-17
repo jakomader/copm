@@ -42,7 +42,8 @@ defmodule Copm.Kafka.AaaConsumer do
         ip_address: payload["ipAddress"],
         user_agent: payload["userAgent"],
         device_id: payload["deviceId"],
-        geolocation: payload["geolocation"]
+        geolocation: payload["geolocation"],
+        org_id: payload["orgId"]
       }
 
       AuthEvent.changeset(%AuthEvent{}, attrs)

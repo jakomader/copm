@@ -19,11 +19,13 @@ defmodule Copm.Repo.Migrations.CreateClients do
       add :is_foreign, :boolean, null: false, default: false
       add :economic_sector, :string
       add :bank_info, :map, null: false
+      add :org_id, references(:organizations), null: false, primary_key: true
 
       timestamps()
     end
 
     create index(:clients, [:inn])
     create index(:clients, [:ogrn])
+    create index(:clients, [:org_id])
   end
 end

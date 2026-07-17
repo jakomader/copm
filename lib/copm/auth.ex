@@ -185,6 +185,7 @@ defmodule Copm.Auth do
     |> check_role(Map.get(attrs, :role))
     |> check_date(Map.get(dat,:from), Map.get(dat, :to))
     |> Repo.all()
+    |> Repo.preload(:organization)
   end
 
   defp search_pattern(q, nil), do: q

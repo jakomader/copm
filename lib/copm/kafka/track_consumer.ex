@@ -42,11 +42,12 @@ defmodule Copm.Kafka.TrackConsumer do
         status_description: payload["statusDescription"],
         location: payload["location"],
         operator_id: payload["operatorId"],
-        scanned_device_id: payload["scannedDeviceId"]
+        scanned_device_id: payload["scannedDeviceId"],
+        org_id: payload["orgId"]
       }
 
       TrackingEvent.changeset(%TrackingEvent{}, attrs)
-      |> Repo.insert(on_conflict: :nothing, conflict_target: :tracking_id)
+      |> Repo.insert(on_conflict: :nothing, conflict_target: [:org_id, :tracking_id])
       |> case do
         {:ok, _event} -> message
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))

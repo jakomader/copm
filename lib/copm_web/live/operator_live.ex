@@ -8,7 +8,6 @@ defmodule CopmWeb.OperatorLive do
       socket
       |> assign(filters: %{login: "", role: "", date_from: "", date_to: ""})
       |> assign(operators: Auth.list_operators(%{}))
-
     {:ok, socket}
   end
 
@@ -347,6 +346,7 @@ defmodule CopmWeb.OperatorLive do
           <h1 class="admin-title">Операторы</h1>
           <div class="admin-header-actions">
             <.link navigate={~p"/admin/operators/new"} class="admin-create-link">+ Создать оператора</.link>
+            <.link navigate={~p"/admin/orgs"} class="admin-create-link">Организации</.link>
             <.link href={~p"/logout"} class="admin-logout-link">Выйти</.link>
           </div>
         </div>
@@ -387,6 +387,7 @@ defmodule CopmWeb.OperatorLive do
                 <th>Роль</th>
                 <th>Статус</th>
                 <th>Добавлен</th>
+                <th>Организация</th>
                 <th></th>
               </tr>
             </thead>
@@ -400,6 +401,7 @@ defmodule CopmWeb.OperatorLive do
                   <span class={"admin-badge #{operator.status}"}>{operator.status}</span>
                 </td>
                 <td>{Calendar.strftime(operator.inserted_at, "%d.%m.%Y")}</td>
+                <td>{if operator.organization, do: operator.organization.org_name, else: "-"}</td>
                 <td>
                   <div class="admin-row-actions">
                     <.link navigate={~p"/admin/operators/#{operator.id}/edit"} class="admin-action-btn">

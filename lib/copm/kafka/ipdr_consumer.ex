@@ -43,6 +43,7 @@ defmodule Copm.Kafka.IpdrConsumer do
           protocol: payload["protocol"],
           flag: payload["flag"],
           bytes_transferred: parse_int(payload["bytesTransferred"]),
+          org_id: payload["orgId"],
           inserted_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
           updated_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
         }

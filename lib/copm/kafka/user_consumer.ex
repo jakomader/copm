@@ -40,11 +40,12 @@ defmodule Copm.Kafka.UserConsumer do
         login: payload["login"],
         person: payload["person"],
         user_starts_at: parse_dt(payload["userStartsAt"]),
-        user_ends_at: parse_dt(payload["userEndsAt"])
+        user_ends_at: parse_dt(payload["userEndsAt"]),
+        org_id: payload["orgId"]
       }
 
       User.changeset(%User{}, attrs)
-      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: :user_id)
+      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: [:org_id, :user_id])
       |> case do
         {:ok, _user} -> message
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))

@@ -49,11 +49,12 @@ defmodule Copm.Kafka.PaymentConsumer do
         payment_status: payload["paymentStatus"],
         external_payment_id: payload["externalPaymentId"],
         session_id: payload["sessionId"],
-        ip_address: payload["ipAddress"]
+        ip_address: payload["ipAddress"],
+        org_id: payload["orgId"]
       }
 
       Payment.changeset(%Payment{}, attrs)
-      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: :payment_id)
+      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: [:org_id, :payment_id])
       |> case do
         {:ok, _payment} -> message
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))

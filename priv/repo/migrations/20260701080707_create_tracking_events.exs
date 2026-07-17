@@ -4,13 +4,14 @@ defmodule Copm.Repo.Migrations.CreateTrackingEvents do
   def change do
     create table(:tracking_events, primary_key: false) do
       add :tracking_id, :string, primary_key: true
-      add :order_id, references(:orders, column: :order_id, type: :string, on_delete: :restrict), null: false
+      add :order_id, :string, null: false
       add :event_ts, :utc_datetime, null: false
       add :status_code, :string, null: false
       add :status_description, :string
       add :location, :map, null: false
       add :operator_id, :string
       add :scanned_device_id, :string
+      add :org_id, references(:organizations), null: false, primary_key: true
 
       timestamps()
     end
@@ -18,5 +19,11 @@ defmodule Copm.Repo.Migrations.CreateTrackingEvents do
     create index(:tracking_events, [:order_id])
     create index(:tracking_events, [:event_ts])
     create index(:tracking_events, [:status_code])
+    create index(:tracking_events, [:org_id])
+
+    execute(
+      "ALTER TABLE tracking_events ADD CONSTRAINT tracking_events_org_order_fkey FOREIGN KEY (org_id, order_id) REFERENCES orders (org_id, order_id) ON DELETE RESTRICT",
+      "ALTER TABLE tracking_events DROP CONSTRAINT tracking_events_org_order_fkey"
+    )
   end
 end

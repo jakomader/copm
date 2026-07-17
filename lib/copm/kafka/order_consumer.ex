@@ -62,11 +62,12 @@ defmodule Copm.Kafka.OrderConsumer do
         insurance_info: payload["insuranceInfo"],
         customs_info: payload["customsInfo"],
         estimated_delivery_date: parse_date(payload["estimatedDeliveryDate"]),
-        actual_delivery_date: parse_date(payload["actualDeliveryDate"])
+        actual_delivery_date: parse_date(payload["actualDeliveryDate"]),
+        org_id: payload["orgId"]
       }
 
       Order.changeset(%Order{}, attrs)
-      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: :order_id)
+      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: [:org_id, :order_id])
       |> case do
         {:ok, _order} -> message
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))

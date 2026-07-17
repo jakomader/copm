@@ -5,10 +5,10 @@ defmodule Mix.Tasks.Copm.IngestCsv do
 
 
   @impl Mix.Task
-  def run([file]) do
+  def run([file, org_id]) do
     Mix.Task.run("app.start")
 
-    case Copm.CsvSwallower.ingest(file) do
+    case Copm.CsvSwallower.ingest(file, String.to_integer(org_id)) do
       {:error, reason} ->
         Mix.shell().error("Неудалось запустить обработку: #{inspect(reason)}")
 
@@ -23,6 +23,6 @@ defmodule Mix.Tasks.Copm.IngestCsv do
   end
 
   def run(_args) do
-    Mix.shell().error("Usage: mix copm.ingest_csv path/to/file.csv")
+    Mix.shell().error("Usage: mix copm.ingest_csv path/to/file.csv org_id")
   end
 end

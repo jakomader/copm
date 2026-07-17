@@ -20,7 +20,12 @@ defmodule CopmWeb.OperatorFormLive do
           end
         end
     end
+    socket = assign(socket, orgs: Copm.Organizations.list_organizations())
     {:ok, socket}
+  end
+
+  def handle_event("role_changed", %{"operator" => params}, socket) do
+    {:noreply, assign(socket, operator: %{socket.assigns.operator | role: params["role"]})}
   end
 
   def handle_event("save", %{"operator" => params}, socket) do
@@ -289,12 +294,24 @@ defmodule CopmWeb.OperatorFormLive do
 
             <div class="admin-field">
               <label for="role">Роль</label>
-              <select id="role" name="operator[role]">
+              <select id="role" name="operator[role]" phx-change="role_changed">
                 <option value="admin" selected={@operator.role == "admin"}>admin</option>
                 <option value="data_provider" selected={@operator.role == "data_provider"}>data_provider</option>
                 <option value="queries_only" selected={@operator.role == "queries_only"}>queries_only</option>
               </select>
               <span :if={msg = error_for(@errors, :role)} class="admin-field-error">{msg}</span>
+            </div>
+
+            <div :if={@operator.role == "data_provider"} class="admin-field">
+              <label for="org_id">Организация</label>
+              <select id="org_id" name="operator[org_id]">
+                <option
+                  :for={org <- @orgs}
+                  value={org.id}
+                  selected={@operator.org_id == org.id}
+                >{org.org_name}</option>
+              </select>
+              <span :if={msg = error_for(@errors, :org_id)} class="admin-field-error">{msg}</span>
             </div>
 
             <div :if={@live_action == :edit} class="admin-field">

@@ -4,9 +4,9 @@ defmodule Copm.Repo.Migrations.CreatePayments do
   def change do
     create table(:payments, primary_key: false) do
       add :payment_id, :string, primary_key: true
-      add :order_id, references(:orders, column: :order_id, type: :string, on_delete: :restrict), null: false
-      add :client_id, references(:clients, column: :client_id, type: :string, on_delete: :restrict), null: false
-      add :user_id, references(:users, column: :user_id, type: :string, on_delete: :restrict), null: false
+      add :order_id, :string, null: false
+      add :client_id, :string, null: false
+      add :user_id, :string, null: false
       add :payment_ts, :utc_datetime, null: false
       add :payment_type, :string, null: false
       add :payment_method, :string, null: false
@@ -19,6 +19,7 @@ defmodule Copm.Repo.Migrations.CreatePayments do
       add :external_payment_id, :string
       add :session_id, :string, null: false
       add :ip_address, :string, null: false
+      add :org_id, references(:organizations), null: false, primary_key: true
 
       timestamps()
     end
@@ -28,5 +29,20 @@ defmodule Copm.Repo.Migrations.CreatePayments do
     create index(:payments, [:user_id])
     create index(:payments, [:payment_ts])
     create index(:payments, [:session_id])
+    create index(:payments, [:org_id])
+    execute(
+      "ALTER TABLE payments ADD CONSTRAINT payments_org_order_fkey FOREIGN KEY (org_id, order_id) REFERENCES orders (org_id, order_id) ON DELETE RESTRICT",
+      "ALTER TABLE payments DROP CONSTRAINT payments_org_order_fkey"
+    )
+
+    execute(
+      "ALTER TABLE payments ADD CONSTRAINT payments_org_client_fkey FOREIGN KEY (org_id, client_id) REFERENCES clients (org_id, client_id) ON DELETE RESTRICT",
+      "ALTER TABLE payments DROP CONSTRAINT payments_org_client_fkey"
+    )
+
+    execute(
+      "ALTER TABLE payments ADD CONSTRAINT payments_org_user_fkey FOREIGN KEY (org_id, user_id) REFERENCES users (org_id, user_id) ON DELETE RESTRICT",
+      "ALTER TABLE payments DROP CONSTRAINT payments_org_user_fkey"
+    )
   end
 end
