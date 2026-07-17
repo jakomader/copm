@@ -21,9 +21,5 @@ defmodule Copm.Repo.Migrations.CreateTrackingEvents do
     create index(:tracking_events, [:status_code])
     create index(:tracking_events, [:org_id])
 
-    execute(
-      "ALTER TABLE tracking_events ADD CONSTRAINT tracking_events_org_order_fkey FOREIGN KEY (org_id, order_id) REFERENCES orders (org_id, order_id) ON DELETE RESTRICT",
-      "ALTER TABLE tracking_events DROP CONSTRAINT tracking_events_org_order_fkey"
-    )
   end
 end

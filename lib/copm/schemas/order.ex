@@ -42,8 +42,8 @@ defmodule Copm.Schemas.Order do
     timestamps()
   end
 
-  @required ~w(order_id contract_id client_id user_id org_id order_status order_type created_at confirmed_at sender receiver route_from route_to carrier cargo_description cargo_weight cargo_danger_class estimated_delivery_date actual_delivery_date)a
-  @optional ~w(transit_points flight_number vehicle_number awb_number cmr_number cargo_volume cargo_special_conditions insurance_info customs_info)a
+  @required ~w(order_id contract_id client_id user_id org_id order_status order_type created_at confirmed_at sender receiver route_from route_to carrier cargo_description cargo_weight estimated_delivery_date actual_delivery_date)a
+  @optional ~w(transit_points flight_number vehicle_number awb_number cmr_number cargo_volume cargo_danger_class cargo_special_conditions insurance_info customs_info)a
 
   def changeset(order, attrs) do
     order
@@ -51,8 +51,6 @@ defmodule Copm.Schemas.Order do
     |> validate_required(@required)
     |> validate_inclusion(:order_status, ~w(CREATED CONFIRMED IN_TRANSIT DELIVERED CANCELLED))
     |> validate_inclusion(:order_type, ~w(AIR AUTO MULTIMODAL INTERNATIONAL))
-    |> foreign_key_constraint(:client_id, name: :orders_org_client_fkey)
-    |> foreign_key_constraint(:user_id, name: :orders_org_user_fkey)
     |> foreign_key_constraint(:org_id)
   end
 end

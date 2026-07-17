@@ -5,6 +5,7 @@ defmodule CopmWeb.GraphQL.Types.IpdrTypes do
 
   object :ipdr_record do
     field :id, non_null(:id)
+    field :org_id, non_null(:integer)
     field :ts, non_null(:string)
     field :source_ip, non_null(:string)
     field :source_port, non_null(:integer)
@@ -17,6 +18,7 @@ defmodule CopmWeb.GraphQL.Types.IpdrTypes do
 
   object :ipdr_queries do
     field :ipdr_records, list_of(:ipdr_record) do
+      arg :org_id, :integer
       arg :source_ip, :string
       arg :from_ts, :string
       arg :to_ts, :string

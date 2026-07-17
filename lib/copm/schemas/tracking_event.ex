@@ -27,7 +27,6 @@ defmodule Copm.Schemas.TrackingEvent do
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
     |> validate_inclusion(:status_code, ~w(PICKUP WAREHOUSE_IN DEPARTED ARRIVED DELIVERED))
-    |> foreign_key_constraint(:order_id, name: :tracking_events_org_order_fkey)
     |> foreign_key_constraint(:org_id)
   end
 end

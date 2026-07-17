@@ -32,6 +32,7 @@ defmodule CopmWeb.Router do
       schema: CopmWeb.GraphQL.Schema
 
   end
+
   scope "/api", CopmWeb do
     pipe_through :ingest
     post "/ingest/csv", IngestController, :create_file

@@ -21,11 +21,10 @@ defmodule Copm.Repo.Migrations.CreateMessages do
     create index(:messages, [:related_order_id])
     create index(:messages, [:org_id])
 
+
     execute(
       "ALTER TABLE messages ADD CONSTRAINT messages_org_conversation_fkey FOREIGN KEY (org_id, conversation_id) REFERENCES conversations (org_id, conversation_id) ON DELETE RESTRICT",
       "ALTER TABLE messages DROP CONSTRAINT messages_org_conversation_fkey"
     )
-
-
   end
 end

@@ -2,6 +2,7 @@ defmodule CopmWeb.GraphQL.Schema do
   use Absinthe.Schema
 
   import_types Absinthe.Type.Custom
+  import_types CopmWeb.GraphQL.Types.OrganizationTypes
   import_types CopmWeb.GraphQL.Types.ClientTypes
   import_types CopmWeb.GraphQL.Types.UserTypes
   import_types CopmWeb.GraphQL.Types.OrderTypes
@@ -18,6 +19,7 @@ defmodule CopmWeb.GraphQL.Schema do
   end
 
   query do
+    import_fields :organization_queries
     import_fields :client_queries
     import_fields :user_queries
     import_fields :order_queries

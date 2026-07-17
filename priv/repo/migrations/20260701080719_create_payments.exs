@@ -30,19 +30,7 @@ defmodule Copm.Repo.Migrations.CreatePayments do
     create index(:payments, [:payment_ts])
     create index(:payments, [:session_id])
     create index(:payments, [:org_id])
-    execute(
-      "ALTER TABLE payments ADD CONSTRAINT payments_org_order_fkey FOREIGN KEY (org_id, order_id) REFERENCES orders (org_id, order_id) ON DELETE RESTRICT",
-      "ALTER TABLE payments DROP CONSTRAINT payments_org_order_fkey"
-    )
 
-    execute(
-      "ALTER TABLE payments ADD CONSTRAINT payments_org_client_fkey FOREIGN KEY (org_id, client_id) REFERENCES clients (org_id, client_id) ON DELETE RESTRICT",
-      "ALTER TABLE payments DROP CONSTRAINT payments_org_client_fkey"
-    )
 
-    execute(
-      "ALTER TABLE payments ADD CONSTRAINT payments_org_user_fkey FOREIGN KEY (org_id, user_id) REFERENCES users (org_id, user_id) ON DELETE RESTRICT",
-      "ALTER TABLE payments DROP CONSTRAINT payments_org_user_fkey"
-    )
   end
 end

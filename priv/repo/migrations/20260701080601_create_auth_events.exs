@@ -21,9 +21,5 @@ defmodule Copm.Repo.Migrations.CreateAuthEvents do
     create index(:auth_events, [:session_ts])
     create index(:auth_events, [:org_id])
 
-    execute(
-      "ALTER TABLE auth_events ADD CONSTRAINT auth_events_org_user_fkey FOREIGN KEY (org_id, user_id) REFERENCES users (org_id, user_id) ON DELETE RESTRICT",
-      "ALTER TABLE auth_events DROP CONSTRAINT auth_events_org_user_fkey"
-    )
   end
 end

@@ -26,7 +26,6 @@ defmodule Copm.Schemas.AuthEvent do
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
     |> validate_inclusion(:event_type, ~w(LOGIN LOGOUT PASSWORD_CHANGE))
-    |> foreign_key_constraint(:user_id, name: :auth_events_org_user_fkey)
     |> foreign_key_constraint(:org_id)
   end
 end

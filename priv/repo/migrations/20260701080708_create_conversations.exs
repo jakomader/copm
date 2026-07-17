@@ -19,14 +19,5 @@ defmodule Copm.Repo.Migrations.CreateConversations do
     create index(:conversations, [:session_id])
     create index(:conversations, [:org_id])
 
-    execute(
-      "ALTER TABLE conversations ADD CONSTRAINT conversations_org_client_fkey FOREIGN KEY (org_id, client_id) REFERENCES clients (org_id, client_id) ON DELETE RESTRICT",
-      "ALTER TABLE conversations DROP CONSTRAINT conversations_org_client_fkey"
-    )
-
-    execute(
-      "ALTER TABLE conversations ADD CONSTRAINT conversations_org_user_fkey FOREIGN KEY (org_id, user_id) REFERENCES users (org_id, user_id) ON DELETE RESTRICT",
-      "ALTER TABLE conversations DROP CONSTRAINT conversations_org_user_fkey"
-    )
   end
 end

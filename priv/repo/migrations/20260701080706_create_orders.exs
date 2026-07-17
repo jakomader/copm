@@ -24,7 +24,7 @@ defmodule Copm.Repo.Migrations.CreateOrders do
       add :cargo_description, :string, null: false
       add :cargo_weight, :decimal, null: false
       add :cargo_volume, :decimal
-      add :cargo_danger_class, :string, null: false
+      add :cargo_danger_class, :string
       add :cargo_special_conditions, :string
       add :insurance_info, :map
       add :customs_info, :map
@@ -41,14 +41,6 @@ defmodule Copm.Repo.Migrations.CreateOrders do
     create index(:orders, [:created_at])
     create index(:orders, [:org_id])
 
-    execute(
-      "ALTER TABLE orders ADD CONSTRAINT orders_org_client_fkey FOREIGN KEY (org_id, client_id) REFERENCES clients (org_id, client_id) ON DELETE RESTRICT",
-      "ALTER TABLE orders DROP CONSTRAINT orders_org_client_fkey"
-    )
 
-    execute(
-      "ALTER TABLE orders ADD CONSTRAINT orders_org_user_fkey FOREIGN KEY (org_id, user_id) REFERENCES users (org_id, user_id) ON DELETE RESTRICT",
-      "ALTER TABLE orders DROP CONSTRAINT orders_org_user_fkey"
-    )
   end
 end

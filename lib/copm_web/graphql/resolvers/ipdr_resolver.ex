@@ -7,6 +7,7 @@ defmodule CopmWeb.GraphQL.Resolvers.IpdrResolver do
   def list_records(_parent, args, _ctx) do
     query =
       IpdrRecord
+      |> filter_org(args[:org_id])
       |> filter_ip(args[:source_ip])
       |> filter_from_ts(args[:from_ts])
       |> filter_to_ts(args[:to_ts])
@@ -16,6 +17,9 @@ defmodule CopmWeb.GraphQL.Resolvers.IpdrResolver do
 
     {:ok, Repo.all(query)}
   end
+
+  defp filter_org(q, nil), do: q
+  defp filter_org(q, org_id), do: where(q, [r], r.org_id == ^org_id)
 
   defp filter_ip(q, nil), do: q
   defp filter_ip(q, ip), do: where(q, [r], r.source_ip == ^ip)

@@ -1,11 +1,11 @@
 defmodule CopmWeb.GraphQL.Types.OrderTypes do
   use Absinthe.Schema.Notation
-  import Absinthe.Resolution.Helpers, only: [dataloader: 1]
 
   alias CopmWeb.GraphQL.Resolvers.OrderResolver
 
   object :order do
     field :order_id, non_null(:string)
+    field :org_id, non_null(:integer)
     field :contract_id, non_null(:string)
     field :client_id, non_null(:string)
     field :user_id, non_null(:string)
@@ -33,19 +33,21 @@ defmodule CopmWeb.GraphQL.Types.OrderTypes do
     field :estimated_delivery_date, non_null(:string)
     field :actual_delivery_date, non_null(:string)
 
-    field :client, :client, resolve: dataloader(Copm.Repo)
-    field :user, :user, resolve: dataloader(Copm.Repo)
-    field :tracking_events, list_of(:tracking_event), resolve: dataloader(Copm.Repo)
-    field :payments, list_of(:payment), resolve: dataloader(Copm.Repo)
+    field :client, :client, resolve: &OrderResolver.scoped_client/3
+    field :user, :user, resolve: &OrderResolver.scoped_user/3
+    field :tracking_events, list_of(:tracking_event), resolve: &OrderResolver.scoped_tracking_events/3
+    field :payments, list_of(:payment), resolve: &OrderResolver.scoped_payments/3
   end
 
   object :order_queries do
     field :order, :order do
+      arg :org_id, non_null(:integer)
       arg :order_id, non_null(:string)
       resolve &OrderResolver.get_order/3
     end
 
     field :orders, list_of(:order) do
+      arg :org_id, :integer
       arg :client_id, :string
       arg :user_id, :string
       arg :status, :string

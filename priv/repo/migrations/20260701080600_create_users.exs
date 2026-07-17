@@ -15,12 +15,9 @@ defmodule Copm.Repo.Migrations.CreateUsers do
     end
 
     create index(:users, [:client_id])
-    create unique_index(:users, [:login])
+    create unique_index(:users, [:org_id, :login])
     create index(:users, [:org_id])
 
-    execute(
-      "ALTER TABLE users ADD CONSTRAINT users_org_client_fkey FOREIGN KEY (org_id, client_id) REFERENCES clients (org_id, client_id) ON DELETE RESTRICT",
-      "ALTER TABLE users DROP CONSTRAINT users_org_client_fkey"
-    )
+
   end
 end

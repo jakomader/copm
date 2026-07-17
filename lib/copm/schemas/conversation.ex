@@ -28,8 +28,6 @@ defmodule Copm.Schemas.Conversation do
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
     |> validate_inclusion(:channel, ~w(CHAT_LK EMAIL PHONE MESSENGER))
-    |> foreign_key_constraint(:client_id, name: :conversations_org_client_fkey)
-    |> foreign_key_constraint(:user_id, name: :conversations_org_user_fkey)
     |> foreign_key_constraint(:org_id)
   end
 end
