@@ -5,7 +5,7 @@ defmodule Copm.Repo.Migrations.CreateTrackingEvents do
     create table(:tracking_events, primary_key: false) do
       add :tracking_id, :string, primary_key: true
       add :order_id, :string, null: false
-      add :event_ts, :utc_datetime, null: false
+      add :event_ts, :string, null: false
       add :status_code, :string, null: false
       add :status_description, :string
       add :location, :map, null: false

@@ -6,7 +6,7 @@ defmodule Copm.Schemas.IpdrRecord do
 
   schema "ipdr_records" do
     belongs_to :organization, Organizations, foreign_key: :org_id
-    field :ts, :utc_datetime
+    field :ts, :string
     field :source_ip, :string
     field :source_port, :integer
     field :destination_ip, :string

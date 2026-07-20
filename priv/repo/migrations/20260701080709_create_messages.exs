@@ -5,7 +5,7 @@ defmodule Copm.Repo.Migrations.CreateMessages do
     create table(:messages, primary_key: false) do
       add :message_id, :string, primary_key: true
       add :conversation_id, :string, null: false
-      add :message_ts, :utc_datetime, null: false
+      add :message_ts, :string, null: false
       add :message_text, :text, null: false
       add :attachments, {:array, :string}
       add :operator_login, :string

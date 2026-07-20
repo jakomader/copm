@@ -35,7 +35,7 @@ defmodule Copm.Kafka.IpdrConsumer do
     records =
       Enum.map(messages, fn %{data: payload} ->
         %{
-          ts: parse_dt(payload["ts"]),
+          ts: payload["ts"],
           source_ip: payload["sourceIp"],
           source_port: parse_int(payload["sourcePort"]),
           destination_ip: payload["destinationIp"],
@@ -52,9 +52,6 @@ defmodule Copm.Kafka.IpdrConsumer do
     Repo.insert_all(IpdrRecord, records, on_conflict: :nothing)
     messages
   end
-
-  defp parse_dt(nil), do: nil
-  defp parse_dt(dt), do: DateTime.from_iso8601(dt) |> elem(1)
 
   defp parse_int(nil), do: nil
   defp parse_int(value) when is_integer(value), do: value

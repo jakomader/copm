@@ -52,7 +52,6 @@ defmodule CopmWeb.GraphQL.Resolvers.ClientResolver do
   def scoped_relations(%Client{} = client, _args, _ctx) do
     {:ok, Repo.all(from(r in ClientRelation, where: r.org_id == ^client.org_id and r.client_id == ^client.client_id))}
   end
-
   def scoped_contacts(%Client{} = client, _args, _ctx) do
     {:ok, Repo.all(from(c in ClientContact, where: c.org_id == ^client.org_id and c.client_id == ^client.client_id))}
   end

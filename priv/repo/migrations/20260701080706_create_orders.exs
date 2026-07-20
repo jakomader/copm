@@ -9,8 +9,8 @@ defmodule Copm.Repo.Migrations.CreateOrders do
       add :user_id, :string, null: false
       add :order_status, :string, null: false
       add :order_type, :string, null: false
-      add :created_at, :utc_datetime, null: false
-      add :confirmed_at, :utc_datetime, null: false
+      add :created_at, :string, null: false
+      add :confirmed_at, :string, null: false
       add :sender, :map, null: false
       add :receiver, :map, null: false
       add :route_from, :string, null: false
@@ -28,8 +28,8 @@ defmodule Copm.Repo.Migrations.CreateOrders do
       add :cargo_special_conditions, :string
       add :insurance_info, :map
       add :customs_info, :map
-      add :estimated_delivery_date, :date, null: false
-      add :actual_delivery_date, :date, null: false
+      add :estimated_delivery_date, :string, null: false
+      add :actual_delivery_date, :string, null: false
       add :org_id, references(:organizations), null: false, primary_key: true
 
       timestamps()

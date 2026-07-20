@@ -37,7 +37,7 @@ defmodule Copm.Kafka.AaaConsumer do
       attrs = %{
         user_id: payload["userId"],
         session_id: payload["sessionId"],
-        session_ts: parse_dt(payload["sessionTs"]),
+        session_ts: payload["sessionTs"],
         event_type: payload["eventType"],
         ip_address: payload["ipAddress"],
         user_agent: payload["userAgent"],
@@ -54,9 +54,6 @@ defmodule Copm.Kafka.AaaConsumer do
       end
     end)
   end
-
-  defp parse_dt(nil), do: nil
-  defp parse_dt(dt), do: DateTime.from_iso8601(dt) |> elem(1)
 
   defp kafka_hosts do
     Application.get_env(:copm, :kafka_hosts, [{"localhost", 9092}])

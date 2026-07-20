@@ -8,8 +8,8 @@ defmodule Copm.Repo.Migrations.CreateClientRelation do
       add :inn, :string, null: false
       add :position, :string, null: false
       add :role, :string, null: false
-      add :date_begin, :date
-      add :date_end, :date
+      add :date_begin, :string
+      add :date_end, :string
       add :org_id, references(:organizations), null: false
 
       timestamps()

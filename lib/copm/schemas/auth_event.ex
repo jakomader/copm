@@ -8,7 +8,7 @@ defmodule Copm.Schemas.AuthEvent do
     belongs_to :user, User, foreign_key: :user_id, references: :user_id, type: :string
     belongs_to :organization, Organizations, foreign_key: :org_id
     field :session_id, :string
-    field :session_ts, :utc_datetime
+    field :session_ts, :string
     field :event_type, :string
     field :ip_address, :map
     field :user_agent, :string

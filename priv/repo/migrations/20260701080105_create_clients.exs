@@ -5,7 +5,7 @@ defmodule Copm.Repo.Migrations.CreateClients do
     create table(:clients, primary_key: false) do
       add :client_id, :string, primary_key: true
       add :client_status, :string, null: false
-      add :registration_date, :utc_datetime, null: false
+      add :registration_date, :string, null: false
       add :full_name, :string, null: false
       add :short_name, :string
       add :inn, :string, null: false

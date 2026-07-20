@@ -6,6 +6,12 @@ defmodule Copm.Kafka.UserConsumer do
   alias Copm.Schemas.User
 
   @topic "info.user"
+  @camel_to_snake %{
+    "clientId" => "client_id",
+    "login" => "login",
+    "person" => "person",
+    "userStartsAt" => "user_starts_at"
+  }
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -34,27 +40,42 @@ defmodule Copm.Kafka.UserConsumer do
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
     Enum.map(messages, fn %{data: payload} = message ->
-      attrs = %{
-        user_id: payload["userId"],
-        client_id: payload["clientId"],
-        login: payload["login"],
-        person: payload["person"],
-        user_starts_at: parse_dt(payload["userStartsAt"]),
-        user_ends_at: parse_dt(payload["userEndsAt"]),
-        org_id: payload["orgId"]
-      }
-
-      User.changeset(%User{}, attrs)
-      |> Repo.insert(on_conflict: {:replace_all_except, [:inserted_at]}, conflict_target: [:org_id, :user_id])
-      |> case do
-        {:ok, _user} -> message
+      case upsert_user(payload) do
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
+        _ -> message
       end
     end)
   end
 
-  defp parse_dt(nil), do: nil
-  defp parse_dt(dt), do: DateTime.from_iso8601(dt) |> elem(1)
+  defp upsert_user(payload) do
+    org_id = payload["orgId"]
+    user_id = payload["userId"]
+
+    case Repo.get_by(User, org_id: org_id, user_id: user_id) do
+      nil ->
+        attrs = %{
+          user_id: user_id,
+          client_id: payload["clientId"],
+          login: payload["login"],
+          person: payload["person"],
+          user_starts_at: payload["userStartsAt"],
+          user_ends_at: payload["userEndsAt"],
+          org_id: org_id
+        }
+
+        User.changeset(%User{}, attrs) |> Repo.insert()
+
+      existing ->
+        present_fields =
+          for {camel_key, snake_key} <- @camel_to_snake,
+              not is_nil(payload[camel_key]),
+              into: %{} do
+            {snake_key, payload[camel_key]}
+          end
+
+        existing |> User.actualize_changeset(present_fields) |> Repo.update()
+    end
+  end
 
   defp kafka_hosts do
     Application.get_env(:copm, :kafka_hosts, [{"localhost", 9092}])

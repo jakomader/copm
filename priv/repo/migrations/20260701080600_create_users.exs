@@ -7,8 +7,8 @@ defmodule Copm.Repo.Migrations.CreateUsers do
       add :client_id, :string, null: false
       add :login, :string, null: false
       add :person, :map, null: false
-      add :user_starts_at, :utc_datetime, null: false
-      add :user_ends_at, :utc_datetime
+      add :user_starts_at, :string, null: false
+      add :user_ends_at, :string
       add :org_id, references(:organizations), null: false, primary_key: true
 
       timestamps()

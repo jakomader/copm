@@ -5,7 +5,7 @@ defmodule Copm.Repo.Migrations.CreateAuthEvents do
     create table(:auth_events) do
       add :user_id, :string, null: false
       add :session_id, :string, null: false
-      add :session_ts, :utc_datetime, null: false
+      add :session_ts, :string, null: false
       add :event_type, :string, null: false
       add :ip_address, :map, null: false
       add :user_agent, :string, null: false

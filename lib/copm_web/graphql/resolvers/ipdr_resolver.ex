@@ -25,10 +25,8 @@ defmodule CopmWeb.GraphQL.Resolvers.IpdrResolver do
   defp filter_ip(q, ip), do: where(q, [r], r.source_ip == ^ip)
 
   defp filter_from_ts(q, nil), do: q
-  defp filter_from_ts(q, ts), do: where(q, [r], r.ts >= ^parse_dt(ts))
+  defp filter_from_ts(q, ts), do: where(q, [r], r.ts >= ^ts)
 
   defp filter_to_ts(q, nil), do: q
-  defp filter_to_ts(q, ts), do: where(q, [r], r.ts <= ^parse_dt(ts))
-
-  defp parse_dt(dt), do: DateTime.from_iso8601(dt) |> elem(1)
+  defp filter_to_ts(q, ts), do: where(q, [r], r.ts <= ^ts)
 end

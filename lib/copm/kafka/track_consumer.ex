@@ -6,6 +6,12 @@ defmodule Copm.Kafka.TrackConsumer do
   alias Copm.Schemas.TrackingEvent
 
   @topic "info.track"
+  @camel_to_snake %{
+    "orderId" => "order_id",
+    "eventTs" => "event_ts",
+    "statusCode" => "status_code",
+    "location" => "location"
+  }
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -34,29 +40,44 @@ defmodule Copm.Kafka.TrackConsumer do
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
     Enum.map(messages, fn %{data: payload} = message ->
-      attrs = %{
-        tracking_id: payload["trackingId"],
-        order_id: payload["orderId"],
-        event_ts: parse_dt(payload["eventTs"]),
-        status_code: payload["statusCode"],
-        status_description: payload["statusDescription"],
-        location: payload["location"],
-        operator_id: payload["operatorId"],
-        scanned_device_id: payload["scannedDeviceId"],
-        org_id: payload["orgId"]
-      }
-
-      TrackingEvent.changeset(%TrackingEvent{}, attrs)
-      |> Repo.insert(on_conflict: :nothing, conflict_target: [:org_id, :tracking_id])
-      |> case do
-        {:ok, _event} -> message
+      case upsert_tracking_event(payload) do
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
+        _ -> message
       end
     end)
   end
 
-  defp parse_dt(nil), do: nil
-  defp parse_dt(dt), do: DateTime.from_iso8601(dt) |> elem(1)
+  defp upsert_tracking_event(payload) do
+    org_id = payload["orgId"]
+    tracking_id = payload["trackingId"]
+
+    case Repo.get_by(TrackingEvent, org_id: org_id, tracking_id: tracking_id) do
+      nil ->
+        attrs = %{
+          tracking_id: tracking_id,
+          order_id: payload["orderId"],
+          event_ts: payload["eventTs"],
+          status_code: payload["statusCode"],
+          status_description: payload["statusDescription"],
+          location: payload["location"],
+          operator_id: payload["operatorId"],
+          scanned_device_id: payload["scannedDeviceId"],
+          org_id: org_id
+        }
+
+        TrackingEvent.changeset(%TrackingEvent{}, attrs) |> Repo.insert()
+
+      existing ->
+        present_fields =
+          for {camel_key, snake_key} <- @camel_to_snake,
+              not is_nil(payload[camel_key]),
+              into: %{} do
+            {snake_key, payload[camel_key]}
+          end
+
+        existing |> TrackingEvent.actualize_changeset(present_fields) |> Repo.update()
+    end
+  end
 
   defp kafka_hosts do
     Application.get_env(:copm, :kafka_hosts, [{"localhost", 9092}])

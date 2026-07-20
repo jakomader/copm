@@ -11,7 +11,7 @@ defmodule Copm.Schemas.Payment do
     belongs_to :client, Client, foreign_key: :client_id, references: :client_id, type: :string
     belongs_to :user, User, foreign_key: :user_id, references: :user_id, type: :string
     belongs_to :organization, Organizations, foreign_key: :org_id, primary_key: true
-    field :payment_ts, :utc_datetime
+    field :payment_ts, :string
     field :payment_type, :string
     field :payment_method, :string
     field :amount, :decimal
@@ -30,6 +30,10 @@ defmodule Copm.Schemas.Payment do
 
   @required ~w(payment_id order_id client_id user_id org_id payment_ts payment_type payment_method amount currency invoice_number from_bank_info to_bank_info payment_status session_id ip_address)a
   @optional ~w(external_payment_id)a
+  @actualize_fields ~w(
+    order_id client_id user_id payment_ts payment_type payment_method amount
+    currency invoice_number from_bank_info to_bank_info payment_status session_id ip_address
+  )a
 
   def changeset(payment, attrs) do
     payment
@@ -39,5 +43,32 @@ defmodule Copm.Schemas.Payment do
     |> validate_inclusion(:payment_method, ~w(BANK_TRANSFER CARD ACCOUNT_DEBIT))
     |> validate_inclusion(:payment_status, ~w(PENDING CONFIRMED FAILED REFUNDED))
     |> foreign_key_constraint(:org_id)
+  end
+
+  def actualize_changeset(payment, attrs) do
+    present_keys = attrs |> Map.keys() |> Enum.map(&to_string/1)
+    act_headers = Enum.map(@actualize_fields, &Atom.to_string/1)
+
+    case present_keys -- act_headers do
+      [] ->
+        present_atoms = attrs |> Map.keys() |> Enum.map(&String.to_existing_atom/1)
+
+        payment
+        |> cast(attrs, @actualize_fields)
+        |> validate_required(present_atoms)
+        |> validate_inclusion(:payment_type, ~w(INVOICE PREPAYMENT POSTPAYMENT REFUND))
+        |> validate_inclusion(:payment_method, ~w(BANK_TRANSFER CARD ACCOUNT_DEBIT))
+        |> validate_inclusion(:payment_status, ~w(PENDING CONFIRMED FAILED REFUNDED))
+        |> then(fn cs ->
+          if map_size(cs.changes) == 0,
+            do: add_error(cs, :base, "нужно обновить хотя бы 1 поле"),
+            else: cs
+        end)
+
+      extra ->
+        payment
+        |> cast(attrs, [])
+        |> add_error(:base, "неожиданные поля: #{inspect(extra)}")
+    end
   end
 end

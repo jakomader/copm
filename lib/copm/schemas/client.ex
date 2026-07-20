@@ -9,7 +9,7 @@ defmodule Copm.Schemas.Client do
     field :client_id, :string, primary_key: true
     belongs_to :organization, Organizations, foreign_key: :org_id, primary_key: true
     field :client_status, :string
-    field :registration_date, :utc_datetime
+    field :registration_date, :string
     field :full_name, :string
     field :short_name, :string
     field :inn, :string
@@ -33,7 +33,10 @@ defmodule Copm.Schemas.Client do
 
     timestamps()
   end
-
+  @actualize_fields ~w(
+    client_status registration_date full_name inn ogrn
+    legal_address reg_country_code is_foreign bank_info
+  )a
   @required ~w(client_id org_id client_status registration_date full_name inn ogrn legal_address reg_country_code is_foreign bank_info)a
   @optional ~w(short_name kpp okpo tax_agency_code postal_address economic_sector)a
 
@@ -43,5 +46,22 @@ defmodule Copm.Schemas.Client do
     |> validate_required(@required)
     |> validate_inclusion(:client_status, ~w(ACTIVE BLOCKED ARCHIVED))
     |> foreign_key_constraint(:org_id)
+  end
+  def actualize_changeset(client, attrs) do
+    present_keys = attrs |> Map.keys() |> Enum.map(&to_string/1)
+
+    act_headers = Enum.map(@actualize_fields, &Atom.to_string/1)
+    case present_keys -- act_headers do
+      [] ->
+        present_atoms = attrs |> Map.keys() |> Enum.map(&String.to_existing_atom/1)
+        client
+        |> cast(attrs, @actualize_fields)
+        |> validate_required(present_atoms)
+        |> then(fn cs -> if map_size(cs.changes) == 0 do add_error(cs, :base, "нужно обновить хотя бы 1 поле") else cs end end)
+      extra ->
+        client
+        |> cast(attrs, [])
+        |> add_error(:base, "неожиданные поля: #{inspect(extra)}")
+    end
   end
 end

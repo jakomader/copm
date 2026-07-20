@@ -7,7 +7,7 @@ defmodule Copm.Repo.Migrations.CreatePayments do
       add :order_id, :string, null: false
       add :client_id, :string, null: false
       add :user_id, :string, null: false
-      add :payment_ts, :utc_datetime, null: false
+      add :payment_ts, :string, null: false
       add :payment_type, :string, null: false
       add :payment_method, :string, null: false
       add :amount, :decimal, null: false

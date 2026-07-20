@@ -3,7 +3,7 @@ defmodule Copm.Repo.Migrations.CreateIpdrRecords do
 
   def change do
     create table(:ipdr_records) do
-      add :ts, :utc_datetime, null: false
+      add :ts, :string, null: false
       add :source_ip, :string, null: false
       add :source_port, :integer, null: false
       add :destination_ip, :string, null: false

@@ -7,8 +7,8 @@ defmodule Copm.Repo.Migrations.CreateConversations do
       add :client_id, :string, null: false
       add :user_id, :string, null: false
       add :session_id, :string, null: false
-      add :starts_at, :utc_datetime, null: false
-      add :ends_at, :utc_datetime
+      add :starts_at, :string, null: false
+      add :ends_at, :string
       add :channel, :string, null: false
       add :org_id, references(:organizations), null: false, primary_key: true
       timestamps()

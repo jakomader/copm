@@ -13,8 +13,8 @@ defmodule Copm.Schemas.Order do
     field :contract_id, :string
     field :order_status, :string
     field :order_type, :string
-    field :created_at, :utc_datetime
-    field :confirmed_at, :utc_datetime
+    field :created_at, :string
+    field :confirmed_at, :string
     field :sender, :map
     field :receiver, :map
     field :route_from, :string
@@ -32,8 +32,8 @@ defmodule Copm.Schemas.Order do
     field :cargo_special_conditions, :string
     field :insurance_info, :map
     field :customs_info, :map
-    field :estimated_delivery_date, :date
-    field :actual_delivery_date, :date
+    field :estimated_delivery_date, :string
+    field :actual_delivery_date, :string
 
     has_many :tracking_events, TrackingEvent, foreign_key: :order_id, references: :order_id
     has_many :payments, Payment, foreign_key: :order_id, references: :order_id
@@ -44,6 +44,11 @@ defmodule Copm.Schemas.Order do
 
   @required ~w(order_id contract_id client_id user_id org_id order_status order_type created_at confirmed_at sender receiver route_from route_to carrier cargo_description cargo_weight estimated_delivery_date actual_delivery_date)a
   @optional ~w(transit_points flight_number vehicle_number awb_number cmr_number cargo_volume cargo_danger_class cargo_special_conditions insurance_info customs_info)a
+  @actualize_fields ~w(
+    contract_id client_id user_id order_status order_type created_at confirmed_at
+    sender receiver route_from route_to carrier cargo_description cargo_weight
+    estimated_delivery_date actual_delivery_date
+  )a
 
   def changeset(order, attrs) do
     order
@@ -52,5 +57,31 @@ defmodule Copm.Schemas.Order do
     |> validate_inclusion(:order_status, ~w(CREATED CONFIRMED IN_TRANSIT DELIVERED CANCELLED))
     |> validate_inclusion(:order_type, ~w(AIR AUTO MULTIMODAL INTERNATIONAL))
     |> foreign_key_constraint(:org_id)
+  end
+
+  def actualize_changeset(order, attrs) do
+    present_keys = attrs |> Map.keys() |> Enum.map(&to_string/1)
+    act_headers = Enum.map(@actualize_fields, &Atom.to_string/1)
+
+    case present_keys -- act_headers do
+      [] ->
+        present_atoms = attrs |> Map.keys() |> Enum.map(&String.to_existing_atom/1)
+
+        order
+        |> cast(attrs, @actualize_fields)
+        |> validate_required(present_atoms)
+        |> validate_inclusion(:order_status, ~w(CREATED CONFIRMED IN_TRANSIT DELIVERED CANCELLED))
+        |> validate_inclusion(:order_type, ~w(AIR AUTO MULTIMODAL INTERNATIONAL))
+        |> then(fn cs ->
+          if map_size(cs.changes) == 0,
+            do: add_error(cs, :base, "нужно обновить хотя бы 1 поле"),
+            else: cs
+        end)
+
+      extra ->
+        order
+        |> cast(attrs, [])
+        |> add_error(:base, "неожиданные поля: #{inspect(extra)}")
+    end
   end
 end
