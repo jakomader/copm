@@ -3,6 +3,7 @@ defmodule Copm.Kafka.UserConsumer do
 
   alias Broadway.Message
   alias Copm.Repo
+  alias Copm.Kafka.Actualize
   alias Copm.Schemas.User
 
   @topic "info.user"
@@ -12,6 +13,7 @@ defmodule Copm.Kafka.UserConsumer do
     "person" => "person",
     "userStartsAt" => "user_starts_at"
   }
+  @known_keys ~w(userId orgId clientId login person userStartsAt userEndsAt _batchId)
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -40,11 +42,29 @@ defmodule Copm.Kafka.UserConsumer do
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
     Enum.map(messages, fn %{data: payload} = message ->
-      case upsert_user(payload) do
+      result = upsert_user(payload)
+      track_batch(payload, result)
+
+      case result do
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
         _ -> message
       end
     end)
+  end
+
+  defp track_batch(payload, result) do
+    case payload["_batchId"] do
+      nil ->
+        :ok
+
+      batch_id ->
+        user_id = payload["userId"]
+
+        case result do
+          {:error, changeset} -> Copm.IngestBatches.mark_processed(batch_id, user_id, inspect(changeset.errors))
+          _ -> Copm.IngestBatches.mark_processed(batch_id, user_id, nil)
+        end
+    end
   end
 
   defp upsert_user(payload) do
@@ -66,14 +86,20 @@ defmodule Copm.Kafka.UserConsumer do
         User.changeset(%User{}, attrs) |> Repo.insert()
 
       existing ->
-        present_fields =
-          for {camel_key, snake_key} <- @camel_to_snake,
-              not is_nil(payload[camel_key]),
-              into: %{} do
-            {snake_key, payload[camel_key]}
-          end
+        case Actualize.unknown_fields(payload, @known_keys) do
+          [] ->
+            present_fields =
+              for {camel_key, snake_key} <- @camel_to_snake,
+                  not is_nil(payload[camel_key]),
+                  into: %{} do
+                {snake_key, payload[camel_key]}
+              end
 
-        existing |> User.actualize_changeset(present_fields) |> Repo.update()
+            existing |> User.actualize_changeset(present_fields) |> Repo.update()
+
+          extra ->
+            Actualize.reject_unknown_fields(existing, extra)
+        end
     end
   end
 

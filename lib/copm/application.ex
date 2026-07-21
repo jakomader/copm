@@ -16,6 +16,7 @@ defmodule Copm.Application do
       # {Copm.Worker, arg},
       # Start to serve requests, typically the last entry
       Copm.Kafka.ConsumerSupervisor,
+      {Copm.GenServer, []},
       CopmWeb.Endpoint
     ]
 

@@ -37,6 +37,8 @@ defmodule CopmWeb.Router do
     pipe_through :ingest
     post "/ingest/csv", IngestController, :create_file
     post "/ingest/:topic", IngestController, :create
+    get "/ingest/listtrans", ListOrgTransactions, :show_transact
+    get "/ingest/batches/:id", BatchController, :show_batch
     get "/ingest/:topic/:id", IngestController, :show
   end
 

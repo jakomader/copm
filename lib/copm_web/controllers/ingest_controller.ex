@@ -60,20 +60,28 @@ defmodule CopmWeb.IngestController do
     org_id = conn.assigns.current_operator.org_id
 
     with true <- kafka_topic in CsvSwallower.Csv.topics(),
-         :ok <- Producer.start_client() do
+         :ok <- Producer.start_client(),
+         {:ok, batch_id} <- Copm.IngestBatches.start_batch(org_id,kafka_topic,length(records)) do
       {ok, errors} =
-        Enum.reduce(records, {0, 0}, fn record, {ok, errors} ->
-          payload = Map.put(record, "orgId", org_id)
+        records |> Enum.with_index() |> Enum.reduce({0, 0}, fn {record, indx}, {ok, errors} ->
+          payload = record |> Map.put("orgId", org_id) |> Map.put("_batchId", batch_id)
+          key = Map.get(payload, CsvSwallower.key_field(kafka_topic))
 
-          with key when not is_nil(key) <- Map.get(payload, CsvSwallower.key_field(kafka_topic)),
-               :ok <- Producer.publish(kafka_topic, key, payload) do
-            {ok + 1, errors}
+          if is_nil(key) do
+            Copm.IngestBatches.mark_processed(batch_id, "item ##{indx + 1}", "missing key field")
+            {ok, errors + 1}
           else
-            _ -> {ok, errors + 1}
+            case Producer.publish(kafka_topic, key, payload) do
+              :ok ->
+                {ok + 1, errors}
+
+              {:error, reason} ->
+                Copm.IngestBatches.mark_processed(batch_id, key, inspect(reason))
+                {ok, errors + 1}
+            end
           end
         end)
-
-      conn |> put_status(:accepted) |> json(%{ok: ok, errors: errors})
+      conn |> put_status(:accepted) |> json(%{ok: ok, errors: errors, batchId: batch_id})
     else
       false -> conn |> put_status(:bad_request) |> json(%{error: "unknown topic: #{topic}"})
       {:error, reason} -> conn |> put_status(:bad_gateway) |> json(%{error: inspect(reason)})
@@ -87,9 +95,10 @@ defmodule CopmWeb.IngestController do
       |> Map.put("orgId", conn.assigns.current_operator.org_id)
     with true <- kafka_topic in CsvSwallower.Csv.topics(),
          key when not is_nil(key) <- Map.get(payload, CsvSwallower.key_field(kafka_topic)),
+        {:ok, batch_id} <- Copm.IngestBatches.start_batch(conn.assigns.current_operator.org_id,kafka_topic, 1),
          :ok <- Producer.start_client(),
-         :ok <- Producer.publish(kafka_topic, key, payload) do
-      conn |> put_status(:accepted) |> json(%{status: "queued", topic: topic})
+         :ok <- Producer.publish(kafka_topic, key, Map.put(payload, "_batchId", batch_id)) do
+      conn |> put_status(:accepted) |> json(%{status: "queued", topic: topic, batchId: batch_id})
     else
       false -> conn |> put_status(:bad_request) |> json(%{error: "unknown topic: #{topic}"})
       nil -> conn |> put_status(:unprocessable_entity) |> json(%{error: "missing key field"})

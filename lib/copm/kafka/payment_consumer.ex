@@ -3,6 +3,7 @@ defmodule Copm.Kafka.PaymentConsumer do
 
   alias Broadway.Message
   alias Copm.Repo
+  alias Copm.Kafka.Actualize
   alias Copm.Schemas.Payment
 
   @topic "info.payment"
@@ -20,6 +21,11 @@ defmodule Copm.Kafka.PaymentConsumer do
     "sessionId" => "session_id",
     "ipAddress" => "ip_address"
   }
+  @known_keys ~w(
+    paymentId orgId orderId clientId userId paymentTs paymentType paymentMethod
+    amount currency invoiceNumber from to paymentStatus externalPaymentId
+    sessionId ipAddress _batchId
+  )
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -48,11 +54,29 @@ defmodule Copm.Kafka.PaymentConsumer do
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
     Enum.map(messages, fn %{data: payload} = message ->
-      case upsert_payment(payload) do
+      result = upsert_payment(payload)
+      track_batch(payload, result)
+
+      case result do
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
         _ -> message
       end
     end)
+  end
+
+  defp track_batch(payload, result) do
+    case payload["_batchId"] do
+      nil ->
+        :ok
+
+      batch_id ->
+        payment_id = payload["paymentId"]
+
+        case result do
+          {:error, changeset} -> Copm.IngestBatches.mark_processed(batch_id, payment_id, inspect(changeset.errors))
+          _ -> Copm.IngestBatches.mark_processed(batch_id, payment_id, nil)
+        end
+    end
   end
 
   defp upsert_payment(payload) do
@@ -84,19 +108,25 @@ defmodule Copm.Kafka.PaymentConsumer do
         Payment.changeset(%Payment{}, attrs) |> Repo.insert()
 
       existing ->
-        present_fields =
-          for {camel_key, snake_key} <- @camel_to_snake,
-              not is_nil(payload[camel_key]),
-              into: %{} do
-            {snake_key, payload[camel_key]}
-          end
+        case Actualize.unknown_fields(payload, @known_keys) do
+          [] ->
+            present_fields =
+              for {camel_key, snake_key} <- @camel_to_snake,
+                  not is_nil(payload[camel_key]),
+                  into: %{} do
+                {snake_key, payload[camel_key]}
+              end
 
-        present_fields =
-          present_fields
-          |> maybe_put_nested_bank_info("from_bank_info", payload["from"])
-          |> maybe_put_nested_bank_info("to_bank_info", payload["to"])
+            present_fields =
+              present_fields
+              |> maybe_put_nested_bank_info("from_bank_info", payload["from"])
+              |> maybe_put_nested_bank_info("to_bank_info", payload["to"])
 
-        existing |> Payment.actualize_changeset(present_fields) |> Repo.update()
+            existing |> Payment.actualize_changeset(present_fields) |> Repo.update()
+
+          extra ->
+            Actualize.reject_unknown_fields(existing, extra)
+        end
     end
   end
 

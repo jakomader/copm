@@ -3,6 +3,7 @@ defmodule Copm.Kafka.MsgConsumer do
 
   alias Broadway.Message
   alias Copm.Repo
+  alias Copm.Kafka.Actualize
   alias Copm.Schemas.{Conversation, Message}
 
   @topic "info.msg"
@@ -21,6 +22,13 @@ defmodule Copm.Kafka.MsgConsumer do
     "messageText" => "message_text",
     "ipAddress" => "ip_address"
   }
+
+  # Один и тот же payload несёт поля и разговора, и сообщения — известные ключи общие для обеих проверок.
+  @known_keys ~w(
+    orgId conversationId clientId userId sessionId startsAt endsAt channel
+    messageId messageTs messageText attachments operatorLogin ipAddress
+    relatedOrderId _batchId
+  )
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -49,11 +57,29 @@ defmodule Copm.Kafka.MsgConsumer do
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
     Enum.map(messages, fn %{data: payload} = message ->
-      case upsert_conversation_and_message(payload) do
+      result = upsert_conversation_and_message(payload)
+      track_batch(payload, result)
+
+      case result do
         {:error, changeset} -> Broadway.Message.failed(message, inspect(changeset.errors))
         _ -> message
       end
     end)
+  end
+
+  defp track_batch(payload, result) do
+    case payload["_batchId"] do
+      nil ->
+        :ok
+
+      batch_id ->
+        message_id = payload["messageId"]
+
+        case result do
+          {:error, changeset} -> Copm.IngestBatches.mark_processed(batch_id, message_id, inspect(changeset.errors))
+          _ -> Copm.IngestBatches.mark_processed(batch_id, message_id, nil)
+        end
+    end
   end
 
   defp upsert_conversation_and_message(payload) do
@@ -77,14 +103,20 @@ defmodule Copm.Kafka.MsgConsumer do
           Conversation.changeset(%Conversation{}, attrs) |> Repo.insert()
 
         existing ->
-          present_fields =
-            for {camel_key, snake_key} <- @conversation_camel_to_snake,
-                not is_nil(payload[camel_key]),
-                into: %{} do
-              {snake_key, payload[camel_key]}
-            end
+          case Actualize.unknown_fields(payload, @known_keys) do
+            [] ->
+              present_fields =
+                for {camel_key, snake_key} <- @conversation_camel_to_snake,
+                    not is_nil(payload[camel_key]),
+                    into: %{} do
+                  {snake_key, payload[camel_key]}
+                end
 
-          existing |> Conversation.actualize_changeset(present_fields) |> Repo.update()
+              existing |> Conversation.actualize_changeset(present_fields) |> Repo.update()
+
+            extra ->
+              Actualize.reject_unknown_fields(existing, extra)
+          end
       end
 
     with {:ok, _conversation} <- conversation_result do
@@ -112,14 +144,20 @@ defmodule Copm.Kafka.MsgConsumer do
         Message.changeset(%Message{}, attrs) |> Repo.insert()
 
       existing ->
-        present_fields =
-          for {camel_key, snake_key} <- @message_camel_to_snake,
-              not is_nil(payload[camel_key]),
-              into: %{} do
-            {snake_key, payload[camel_key]}
-          end
+        case Actualize.unknown_fields(payload, @known_keys) do
+          [] ->
+            present_fields =
+              for {camel_key, snake_key} <- @message_camel_to_snake,
+                  not is_nil(payload[camel_key]),
+                  into: %{} do
+                {snake_key, payload[camel_key]}
+              end
 
-        existing |> Message.actualize_changeset(present_fields) |> Repo.update()
+            existing |> Message.actualize_changeset(present_fields) |> Repo.update()
+
+          extra ->
+            Actualize.reject_unknown_fields(existing, extra)
+        end
     end
   end
 

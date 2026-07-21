@@ -3,6 +3,7 @@ defmodule Copm.Kafka.OrderConsumer do
 
   alias Broadway.Message
   alias Copm.Repo
+  alias Copm.Kafka.Actualize
   alias Copm.Schemas.Order
 
   @topic "info.order"
@@ -24,6 +25,13 @@ defmodule Copm.Kafka.OrderConsumer do
     "estimatedDeliveryDate" => "estimated_delivery_date",
     "actualDeliveryDate" => "actual_delivery_date"
   }
+  @known_keys ~w(
+    orderId orgId contractId clientId userId orderStatus orderType createdAt
+    confirmedAt sender receiver routeFrom routeTo transitPoints carrier
+    flightNumber vehicleNumber awbNumber cmrNumber cargoDescription cargoWeight
+    cargoVolume cargoDangerClass cargoSpecialConditions insuranceInfo
+    customsInfo estimatedDeliveryDate actualDeliveryDate _batchId
+  )
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -53,11 +61,29 @@ defmodule Copm.Kafka.OrderConsumer do
 
   def handle_batch(_batcher, messages, _batch_info, _context) do
     Enum.map(messages, fn %{data: payload} = message ->
-      case upsert_order(payload) do
+      result = upsert_order(payload)
+      track_batch(payload, result)
+      case result do
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
         _ -> message
       end
+
     end)
+  end
+
+  defp track_batch(payload, result) do
+    case payload["_batchId"] do
+      nil ->
+        :ok
+
+      batch_id ->
+        order_id = payload["orderId"]
+
+        case result do
+          {:error, changeset} -> Copm.IngestBatches.mark_processed(batch_id, order_id, inspect(changeset.errors))
+          _ -> Copm.IngestBatches.mark_processed(batch_id, order_id, nil)
+        end
+    end
   end
 
   defp upsert_order(payload) do
@@ -100,14 +126,20 @@ defmodule Copm.Kafka.OrderConsumer do
         Order.changeset(%Order{}, attrs) |> Repo.insert()
 
       existing ->
-        present_fields =
-          for {camel_key, snake_key} <- @camel_to_snake,
-              not is_nil(payload[camel_key]),
-              into: %{} do
-            {snake_key, payload[camel_key]}
-          end
+        case Actualize.unknown_fields(payload, @known_keys) do
+          [] ->
+            present_fields =
+              for {camel_key, snake_key} <- @camel_to_snake,
+                  not is_nil(payload[camel_key]),
+                  into: %{} do
+                {snake_key, payload[camel_key]}
+              end
 
-        existing |> Order.actualize_changeset(present_fields) |> Repo.update()
+            existing |> Order.actualize_changeset(present_fields) |> Repo.update()
+
+          extra ->
+            Actualize.reject_unknown_fields(existing, extra)
+        end
     end
   end
 

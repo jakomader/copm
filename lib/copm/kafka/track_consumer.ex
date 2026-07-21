@@ -3,6 +3,7 @@ defmodule Copm.Kafka.TrackConsumer do
 
   alias Broadway.Message
   alias Copm.Repo
+  alias Copm.Kafka.Actualize
   alias Copm.Schemas.TrackingEvent
 
   @topic "info.track"
@@ -12,6 +13,10 @@ defmodule Copm.Kafka.TrackConsumer do
     "statusCode" => "status_code",
     "location" => "location"
   }
+  @known_keys ~w(
+    trackingId orgId orderId eventTs statusCode statusDescription location
+    operatorId scannedDeviceId _batchId
+  )
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -40,11 +45,29 @@ defmodule Copm.Kafka.TrackConsumer do
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
     Enum.map(messages, fn %{data: payload} = message ->
-      case upsert_tracking_event(payload) do
+      result = upsert_tracking_event(payload)
+      track_batch(payload, result)
+
+      case result do
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
         _ -> message
       end
     end)
+  end
+
+  defp track_batch(payload, result) do
+    case payload["_batchId"] do
+      nil ->
+        :ok
+
+      batch_id ->
+        tracking_id = payload["trackingId"]
+
+        case result do
+          {:error, changeset} -> Copm.IngestBatches.mark_processed(batch_id, tracking_id, inspect(changeset.errors))
+          _ -> Copm.IngestBatches.mark_processed(batch_id, tracking_id, nil)
+        end
+    end
   end
 
   defp upsert_tracking_event(payload) do
@@ -68,14 +91,20 @@ defmodule Copm.Kafka.TrackConsumer do
         TrackingEvent.changeset(%TrackingEvent{}, attrs) |> Repo.insert()
 
       existing ->
-        present_fields =
-          for {camel_key, snake_key} <- @camel_to_snake,
-              not is_nil(payload[camel_key]),
-              into: %{} do
-            {snake_key, payload[camel_key]}
-          end
+        case Actualize.unknown_fields(payload, @known_keys) do
+          [] ->
+            present_fields =
+              for {camel_key, snake_key} <- @camel_to_snake,
+                  not is_nil(payload[camel_key]),
+                  into: %{} do
+                {snake_key, payload[camel_key]}
+              end
 
-        existing |> TrackingEvent.actualize_changeset(present_fields) |> Repo.update()
+            existing |> TrackingEvent.actualize_changeset(present_fields) |> Repo.update()
+
+          extra ->
+            Actualize.reject_unknown_fields(existing, extra)
+        end
     end
   end
 

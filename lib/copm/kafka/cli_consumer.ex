@@ -3,6 +3,7 @@ defmodule Copm.Kafka.CliConsumer do
 
   alias Broadway.Message
   alias Copm.Repo
+  alias Copm.Kafka.Actualize
   alias Copm.Schemas.{Client, ClientRelation, ClientContact}
 
   @topic "info.cli"
@@ -18,16 +19,23 @@ defmodule Copm.Kafka.CliConsumer do
     "isForeign" => "is_foreign",
     "bankInfo" => "bank_info"
   }
+  @known_client_keys ~w(
+    clientId orgId clientStatus registrationDate fullName shortName inn kpp
+    ogrn ogrnip okpo taxAgencyCode legalAddress postalAddress regCountryCode
+    isForeign economicSector bankInfo relations contacts _batchId
+  )
 
   @relation_camel_to_snake %{
     "fullName" => "full_name",
     "position" => "position",
     "role" => "role"
   }
+  @known_relation_keys ~w(fullName inn position role dateBegin dateEnd)
 
   @contact_camel_to_snake %{
     "email" => "email"
   }
+  @known_contact_keys ~w(phone email)
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -55,11 +63,29 @@ defmodule Copm.Kafka.CliConsumer do
   @impl true
   def handle_batch(_batcher, messages, _batch_info, _context) do
     Enum.map(messages, fn %{data: payload} = message ->
-      case upsert_client(payload) do
+      result = upsert_client(payload)
+      track_batch(payload, result)
+
+      case result do
         {:error, changeset} -> Message.failed(message, inspect(changeset.errors))
         _ -> message
       end
     end)
+  end
+
+  defp track_batch(payload, result) do
+    case payload["_batchId"] do
+      nil ->
+        :ok
+
+      batch_id ->
+        client_id = payload["clientId"]
+
+        case result do
+          {:error, changeset} -> Copm.IngestBatches.mark_processed(batch_id, client_id, inspect(changeset.errors))
+          _ -> Copm.IngestBatches.mark_processed(batch_id, client_id, nil)
+        end
+    end
   end
 
   defp upsert_client(payload) do
@@ -92,14 +118,20 @@ defmodule Copm.Kafka.CliConsumer do
           Client.changeset(%Client{}, client_attrs) |> Repo.insert()
 
         existing ->
-          present_fields =
-            for {camel_key, snake_key} <- @camel_to_snake,
-                not is_nil(payload[camel_key]),
-                into: %{} do
-              {snake_key, payload[camel_key]}
-            end
+          case Actualize.unknown_fields(payload, @known_client_keys) do
+            [] ->
+              present_fields =
+                for {camel_key, snake_key} <- @camel_to_snake,
+                    not is_nil(payload[camel_key]),
+                    into: %{} do
+                  {snake_key, payload[camel_key]}
+                end
 
-          existing |> Client.actualize_changeset(present_fields) |> Repo.update()
+              existing |> Client.actualize_changeset(present_fields) |> Repo.update()
+
+            extra ->
+              Actualize.reject_unknown_fields(existing, extra)
+          end
       end
 
     with {:ok, _client} <- client_result,
@@ -134,14 +166,20 @@ defmodule Copm.Kafka.CliConsumer do
         |> Repo.insert()
 
       existing ->
-        present_fields =
-          for {camel_key, snake_key} <- @relation_camel_to_snake,
-              not is_nil(rel[camel_key]),
-              into: %{} do
-            {snake_key, rel[camel_key]}
-          end
+        case Actualize.unknown_fields(rel, @known_relation_keys) do
+          [] ->
+            present_fields =
+              for {camel_key, snake_key} <- @relation_camel_to_snake,
+                  not is_nil(rel[camel_key]),
+                  into: %{} do
+                {snake_key, rel[camel_key]}
+              end
 
-        existing |> ClientRelation.actualize_changeset(present_fields) |> Repo.update()
+            existing |> ClientRelation.actualize_changeset(present_fields) |> Repo.update()
+
+          extra ->
+            Actualize.reject_unknown_fields(existing, extra)
+        end
     end
   end
 
@@ -166,14 +204,20 @@ defmodule Copm.Kafka.CliConsumer do
         |> Repo.insert()
 
       existing ->
-        present_fields =
-          for {camel_key, snake_key} <- @contact_camel_to_snake,
-              not is_nil(contact[camel_key]),
-              into: %{} do
-            {snake_key, contact[camel_key]}
-          end
+        case Actualize.unknown_fields(contact, @known_contact_keys) do
+          [] ->
+            present_fields =
+              for {camel_key, snake_key} <- @contact_camel_to_snake,
+                  not is_nil(contact[camel_key]),
+                  into: %{} do
+                {snake_key, contact[camel_key]}
+              end
 
-        existing |> ClientContact.actualize_changeset(present_fields) |> Repo.update()
+            existing |> ClientContact.actualize_changeset(present_fields) |> Repo.update()
+
+          extra ->
+            Actualize.reject_unknown_fields(existing, extra)
+        end
     end
   end
 
