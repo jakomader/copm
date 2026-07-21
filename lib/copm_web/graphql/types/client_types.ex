@@ -21,7 +21,8 @@ defmodule CopmWeb.GraphQL.Types.ClientTypes do
     field :is_foreign, non_null(:boolean)
     field :economic_sector, :string
     field :bank_info, non_null(:json)
-
+    field :inserted_at, :naive_datetime
+    field :updated_at, :naive_datetime
     field :relations, list_of(:client_relation), resolve: &ClientResolver.scoped_relations/3
     field :contacts, list_of(:client_contact), resolve: &ClientResolver.scoped_contacts/3
     field :users, list_of(:user), resolve: &ClientResolver.scoped_users/3

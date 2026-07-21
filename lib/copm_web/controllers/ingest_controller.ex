@@ -12,9 +12,14 @@ defmodule CopmWeb.IngestController do
   security([%{"bearerAuth" => []}])
 
   operation(:create,
-    summary: "Приём одной записи по конкретному топику",
-    description:
-      "Принимает JSON-объект с данными одной сущности (заказ, клиент, платёж и т.д.) и публикует его во внутренний Kafka-топик. Доступно только оператору с ролью data_provider.",
+    summary: "Приём одной записи или пакета записей по конкретному топику",
+    description: """
+    Принимает данные одной сущности (заказ, клиент, платёж и т.д.) и публикует их во внутренний Kafka-топик. Доступно только оператору с ролью data_provider.
+
+    Поддерживаются два формата тела запроса:
+    * **Один объект** — поля сущности напрямую в теле запроса. Ответ — `{"status": "queued", "topic": "..."}`.
+    * **Пакет записей** — `{"records": [{...}, {...}, ...]}`, каждый элемент массива — отдельная сущность с теми же полями, что и в одиночном формате. Полезно, если нужно единоразово загрузить много записей (например, 1000 пользователей) без формирования CSV-файла. Ответ — `{"ok": N, "errors": M}`, как и у CSV-эндпоинта: запись с отсутствующим ключевым полем считается ошибкой и не прерывает обработку остальных записей пакета.
+    """,
     parameters: [
       topic: [
         in: :path,
@@ -25,15 +30,55 @@ defmodule CopmWeb.IngestController do
       ]
     ],
     request_body:
-      {"Данные сущности", "application/json", %Schema{type: :object, description: "Произвольные поля сущности, соответствующие выбранному топику"}},
+      {"Данные сущности (один объект) или пакет записей (`{\"records\": [...]}`)", "application/json",
+       %Schema{
+         oneOf: [
+           %Schema{type: :object, description: "Один объект — поля сущности напрямую"},
+           %Schema{
+             type: :object,
+             description: "Пакет записей",
+             properties: %{
+               records: %Schema{type: :array, items: %Schema{type: :object}, description: "Список объектов сущности"}
+             },
+             required: [:records]
+           }
+         ]
+       }},
     responses: [
-      accepted: {"Запрос принят и поставлен в очередь на публикацию", "application/json", IngestAcceptedResponse},
+      accepted:
+        {"Запрос принят и поставлен в очередь на публикацию (форма ответа зависит от формата тела запроса)", "application/json",
+         %Schema{oneOf: [IngestAcceptedResponse, CsvIngestResponse]}},
       bad_request: {"Неизвестный топик", "application/json", ErrorResponse},
       unprocessable_entity: {"В теле запроса отсутствует ключевое поле", "application/json", ErrorResponse},
       bad_gateway: {"Ошибка публикации в Kafka", "application/json", ErrorResponse},
       unauthorized: {"Токен авторизации отсутствует, недействителен или роль не data_provider", "application/json", ErrorResponse}
     ]
   )
+
+  def create(conn, %{"topic" => topic, "records" => records}) when is_list(records) do
+    kafka_topic = "info." <> topic
+    org_id = conn.assigns.current_operator.org_id
+
+    with true <- kafka_topic in CsvSwallower.Csv.topics(),
+         :ok <- Producer.start_client() do
+      {ok, errors} =
+        Enum.reduce(records, {0, 0}, fn record, {ok, errors} ->
+          payload = Map.put(record, "orgId", org_id)
+
+          with key when not is_nil(key) <- Map.get(payload, CsvSwallower.key_field(kafka_topic)),
+               :ok <- Producer.publish(kafka_topic, key, payload) do
+            {ok + 1, errors}
+          else
+            _ -> {ok, errors + 1}
+          end
+        end)
+
+      conn |> put_status(:accepted) |> json(%{ok: ok, errors: errors})
+    else
+      false -> conn |> put_status(:bad_request) |> json(%{error: "unknown topic: #{topic}"})
+      {:error, reason} -> conn |> put_status(:bad_gateway) |> json(%{error: inspect(reason)})
+    end
+  end
 
   def create(conn, %{"topic" => topic} = params) do
     kafka_topic = "info." <> topic
