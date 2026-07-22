@@ -767,7 +767,7 @@ defmodule CopmWeb.Components.AdminLayout do
         </div>
       </aside>
       
-      <div id="resizer" class="resizer"></div>
+      <div id="resizer" class="resizer" phx-hook="SidebarResizer"></div>
       <div class="adm-main">
         <p
           :if={msg = Phoenix.Flash.get(@flash, :error)}
@@ -801,43 +801,6 @@ defmodule CopmWeb.Components.AdminLayout do
         </div>
       </div>
     </div>
-    <script>
-      const sidebar = document.getElementById('sidebar');
-      const resizer = document.getElementById('resizer');
-
-      let isResizing = false;
-
-      resizer.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        resizer.classList.add('resizing');
-        
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-      });
-
-      document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-
-        const minWidth = 280;
-        const maxWidth = 800;
-        let newWidth = e.clientX;
-
-        if (newWidth < minWidth) newWidth = minWidth;
-        if (newWidth > maxWidth) newWidth = maxWidth;
-
-        sidebar.style.width = `${newWidth}px`;
-      });
-
-      document.addEventListener('mouseup', () => {
-        if (isResizing) {
-          isResizing = false;
-          resizer.classList.remove('resizing');
-          document.body.style.cursor = 'default';
-          document.body.style.removeProperty('user-select');
-        }
-      });
-
-    </script>
     """
   end
 
