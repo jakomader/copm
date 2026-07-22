@@ -17,7 +17,7 @@ defmodule CopmWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images js favicon.ico robots.txt settings.png)
+  def static_paths, do: ~w(assets fonts images js favicon.ico robots.txt settings.png github_logo.jpg)
 
   def router do
     quote do

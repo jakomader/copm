@@ -672,6 +672,25 @@ defmodule CopmWeb.Components.AdminLayout do
         position: relative;
         left: -15px;
       }
+      .adm-logo-git{
+        border-radius:50%;
+        display:flex;
+        align-items:center;
+        transform:translateY(1px);
+        text-decoration:none;
+        margin-left:10px;
+      }
+      .adm-logo-git img{
+        width: 20px;
+        border-radius:50%;
+      }
+      .adm-logo-git span{
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--adm-text);
+        white-space: nowrap;
+
+      }
     </style>
 
     <div class="adm-shell">
@@ -679,6 +698,7 @@ defmodule CopmWeb.Components.AdminLayout do
         <div class="adm-logo">
           <div class="adm-logo-mark">DB</div>
           <span class="adm-logo-text">Data Bus</span>
+          <a class="adm-logo-git" href="https://github.com/jakomader/copm"><img src={~p"/github_logo.jpg"}> <span> GitHub Repo</span></a>
         </div>
 
         <nav class="adm-nav">
