@@ -1,11 +1,26 @@
 defmodule CopmWeb.OrgLive do
   use CopmWeb, :live_view
   alias Copm.Organizations
+  import CopmWeb.Components.AdminLayout
   on_mount {CopmWeb.RequireAdminHook, :default}
 
   def mount(_params, _session, socket) do
-    socket = assign(socket, orgs: Organizations.list_organizations())
+    socket =
+      socket
+      |> assign(search: "")
+      |> assign(all_orgs: Organizations.list_organizations())
+      |> filter_orgs()
+
     {:ok, socket}
+  end
+
+  def handle_event("filter", %{"search" => search}, socket) do
+    socket =
+      socket
+      |> assign(search: search)
+      |> filter_orgs()
+
+    {:noreply, socket}
   end
 
   def handle_event("delete", %{"id" => id}, socket) do
@@ -19,235 +34,88 @@ defmodule CopmWeb.OrgLive do
         {:ok, _} ->
           socket
           |> put_flash(:info, "Организация удалена")
-          |> assign(orgs: Organizations.list_organizations())
+          |> assign(all_orgs: Organizations.list_organizations())
+          |> filter_orgs()
 
         {:error, _changeset} ->
-          put_flash(socket, :error, "Нельзя удалить — есть привязанные операторы")
+          put_flash(socket, :error, "Нельзя удалить - есть привязанные операторы")
       end
 
     {:noreply, socket}
   end
 
+  defp filter_orgs(socket) do
+    search = String.trim(socket.assigns.search)
+
+    orgs =
+      if search == "" do
+        socket.assigns.all_orgs
+      else
+        needle = String.downcase(search)
+        Enum.filter(socket.assigns.all_orgs, fn org ->
+          String.contains?(String.downcase(org.org_name || ""), needle)
+        end)
+      end
+
+    assign(socket, orgs: orgs)
+  end
+
   def render(assigns) do
     ~H"""
-    <style>
-      body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      }
+    <.admin_shell active={:orgs} current_operator={@current_operator} title="Организации" count={length(@orgs)} flash={@flash}>
+      <:actions>
+        <.link navigate={~p"/admin/orgs/new"} class="adm-icon-btn" title="Добавить организацию">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round" /></svg>
+        </.link>
+      </:actions>
 
-      .admin-page {
-        min-height: 100vh;
-        background: radial-gradient(circle at top, #1e2a4a 0%, #0b1120 65%);
-        padding: 32px 16px;
-        color: #f4f6fb;
-      }
+      <div class="adm-table-wrap">
+          <form phx-change="filter">
+            <table class="adm-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Название</th>
+                  <th>Добавлена</th>
+                  <th></th>
+                </tr>
+                <tr class="adm-filter-row">
+                  <th></th>
+                  <th>
+                    <label class="adm-search">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>
+                      <input type="text" name="search" value={@search} placeholder="Поиск" />
+                    </label>
+                  </th>
+                  <th></th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={org <- @orgs}>
+                  <td>{org.id}</td>
+                  <td>{org.org_name}</td>
+                  <td>{Calendar.strftime(org.inserted_at, "%d.%m.%Y")}</td>
+                  <td class="adm-col-actions">
+                    <div class="adm-row-actions">
+                      <button
+                        class="adm-btn adm-btn-danger adm-btn-sm"
+                        phx-click="delete"
+                        phx-value-id={org.id}
+                        data-confirm="Удалить организацию безвозвратно?"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </form>
 
-      .admin-shell {
-        max-width: 720px;
-        margin: 0 auto;
-      }
-
-      .admin-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-
-      .admin-title {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-      }
-
-      .admin-create-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border: none;
-        border-radius: 10px;
-        padding: 11px 18px;
-        font-size: 14px;
-        font-weight: 600;
-        color: #0b1120;
-        background: linear-gradient(135deg, #8fb2ff, #6c8cff);
-        text-decoration: none;
-      }
-
-      .admin-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .admin-logout-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 10px;
-        padding: 10px 16px;
-        font-size: 14px;
-        font-weight: 600;
-        color: rgba(244, 246, 251, 0.7);
-        background: rgba(255, 255, 255, 0.04);
-        text-decoration: none;
-      }
-
-      .admin-panel {
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(14px);
-      }
-
-      .admin-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-      }
-
-      .admin-table th {
-        text-align: left;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: rgba(244, 246, 251, 0.5);
-        padding: 10px 12px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-      }
-
-      .admin-table td {
-        padding: 12px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        vertical-align: middle;
-      }
-
-      .admin-row-actions {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-      }
-
-      .admin-action-btn {
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        background: rgba(255, 255, 255, 0.06);
-        color: #f4f6fb;
-        border-radius: 8px;
-        padding: 6px 12px;
-        font-size: 13px;
-        cursor: pointer;
-        text-decoration: none;
-      }
-
-      .admin-action-btn.danger:hover {
-        background: rgba(255, 90, 90, 0.15);
-        border-color: rgba(255, 90, 90, 0.5);
-      }
-      .admin-back-link {
-        color: rgba(244, 246, 251, 0.6);
-        font-size: 14px;
-        text-decoration: none;
-      }
-
-      .admin-back-link:hover {
-        color: #f4f6fb;
-      }
-      .admin-empty {
-        text-align: center;
-        padding: 32px;
-        color: rgba(244, 246, 251, 0.5);
-      }
-
-      .admin-flash {
-        margin: 0 0 20px;
-        padding: 12px 16px;
-        border-radius: 10px;
-        font-size: 14px;
-      }
-
-      .admin-flash.error {
-        background: rgba(255, 90, 90, 0.12);
-        border: 1px solid rgba(255, 90, 90, 0.35);
-        color: #ff9d9d;
-      }
-
-      .admin-flash.info {
-        background: rgba(108, 140, 255, 0.12);
-        border: 1px solid rgba(108, 140, 255, 0.35);
-        color: #8fb2ff;
-      }
-    </style>
-
-    <div class="admin-page">
-      <div class="admin-shell">
-        <p
-          :if={msg = Phoenix.Flash.get(@flash, :error)}
-          id="flash-error"
-          phx-hook="AutoDismissFlash"
-          phx-click="lv:clear-flash"
-          phx-value-key="error"
-          class="admin-flash error"
-        >{msg}</p>
-        <p
-          :if={msg = Phoenix.Flash.get(@flash, :info)}
-          id="flash-info"
-          phx-hook="AutoDismissFlash"
-          phx-click="lv:clear-flash"
-          phx-value-key="info"
-          class="admin-flash info"
-        >{msg}</p>
-
-        <div class="admin-header">
-          <h1 class="admin-title">Организации</h1>
-          <div class="admin-header-actions">
-            <.link navigate={~p"/admin/operators"} class="admin-back-link">← К операторам</.link>
-            <.link navigate={~p"/admin/orgs/new"} class="admin-create-link">+ Создать организацию</.link>
-            <.link href={~p"/logout"} class="admin-logout-link">Выйти</.link>
-          </div>
+          <p :if={@orgs == []} class="adm-empty">Организации не найдены</p>
         </div>
-
-        <div class="admin-panel">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Название</th>
-                <th>Добавлена</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={org <- @orgs}>
-                <td>{org.id}</td>
-                <td>{org.org_name}</td>
-                <td>{Calendar.strftime(org.inserted_at, "%d.%m.%Y")}</td>
-                <td>
-                  <div class="admin-row-actions">
-                    <button
-                      class="admin-action-btn danger"
-                      phx-click="delete"
-                      phx-value-id={org.id}
-                      data-confirm="Удалить организацию безвозвратно?"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <p :if={@orgs == []} class="admin-empty">Организации не найдены</p>
-        </div>
-      </div>
-    </div>
+    </.admin_shell>
     """
   end
 end

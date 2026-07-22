@@ -16,7 +16,7 @@ config :copm, CopmWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [json: CopmWeb.ErrorJSON],
+    formats: [html: CopmWeb.ErrorHTML, json: CopmWeb.ErrorJSON],
     layout: false
   ],
   pubsub_server: Copm.PubSub,

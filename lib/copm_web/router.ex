@@ -58,9 +58,11 @@ defmodule CopmWeb.Router do
     get "/session/new", SessionController, :create
     get "/logout", LogoutController, :delete
     live "/login", LoginLive
-    live "/admin/operators", OperatorLive
-    live "/admin/operators/new", OperatorFormLive, :new
-    live "/admin/operators/:id/edit", OperatorFormLive, :edit
+    live "/admin/users/admins", OperatorLive, :admins
+    live "/admin/users/suppliers", OperatorLive, :suppliers
+    live "/admin/users/consumers", OperatorLive, :consumers
+    live "/admin/users/new", OperatorFormLive, :new
+    live "/admin/users/:id/edit", OperatorFormLive, :edit
     live "/admin/orgs", OrgLive
     live "/admin/orgs/new", OrgFormLive, :new
   end

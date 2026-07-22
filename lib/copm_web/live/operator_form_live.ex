@@ -1,18 +1,20 @@
 defmodule CopmWeb.OperatorFormLive do
   use CopmWeb, :live_view
   alias Copm.Auth
+  import CopmWeb.Components.AdminLayout
   on_mount {CopmWeb.RequireAdminHook, :default}
 
   def mount(params, _session, socket) do
     socket =
     case socket.assigns.live_action do
       :new ->
+        role = params["role"] || "admin"
         socket
-        |> assign(operator: %Copm.Schemas.Operators{}, errors: %{})
+        |> assign(operator: %Copm.Schemas.Operators{role: role}, errors: %{})
       :edit ->
         id = String.to_integer(params["id"])
         if id == socket.assigns.current_operator.id do
-          push_navigate(socket, to: ~p"/admin/operators")
+          push_navigate(socket, to: ~p"/admin/users/admins")
         else
           case Copm.Repo.get(Copm.Schemas.Operators, id) do
             nil -> push_navigate(socket, to: ~p"/logout")
@@ -40,10 +42,10 @@ defmodule CopmWeb.OperatorFormLive do
       end
 
       case result do
-        {:ok, _operator} ->
+        {:ok, operator} ->
           socket
-          |> put_flash(:info, "Оператор успешно сохранён")
-          |> push_navigate(to: ~p"/admin/operators")
+          |> put_flash(:info, "Пользователь успешно сохранён")
+          |> push_navigate(to: section_path(operator.role))
 
         {:error, changeset} ->
           errors =
@@ -70,273 +72,92 @@ defmodule CopmWeb.OperatorFormLive do
     end
   end
 
+  defp section_for_role("admin"), do: :admins
+  defp section_for_role("data_provider"), do: :suppliers
+  defp section_for_role("queries_only"), do: :consumers
+  defp section_for_role(_), do: :admins
+
+  defp section_path("admin"), do: ~p"/admin/users/admins"
+  defp section_path("data_provider"), do: ~p"/admin/users/suppliers"
+  defp section_path("queries_only"), do: ~p"/admin/users/consumers"
+  defp section_path(_), do: ~p"/admin/users/admins"
+
   def render(assigns) do
     ~H"""
-    <style>
-      body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      }
+    <.admin_shell
+      active={section_for_role(@operator.role)}
+      current_operator={@current_operator}
+      title={if @live_action == :new, do: "Новый пользователь", else: "Редактирование пользователя"}
+      flash={@flash}
+    >
+      <:actions>
+        <.link navigate={section_path(@operator.role)} class="adm-btn adm-btn-ghost">← К списку</.link>
+      </:actions>
 
-      .admin-page {
-        min-height: 100vh;
-        background: radial-gradient(circle at top, #1e2a4a 0%, #0b1120 65%);
-        padding: 32px 16px;
-        color: #f4f6fb;
-      }
-
-      .admin-shell {
-        max-width: 520px;
-        margin: 0 auto;
-      }
-
-      .admin-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-
-      .admin-title {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-      }
-
-      .admin-back-link {
-        color: rgba(244, 246, 251, 0.6);
-        font-size: 14px;
-        text-decoration: none;
-      }
-
-      .admin-back-link:hover {
-        color: #f4f6fb;
-      }
-
-      .admin-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
-
-      .admin-logout-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 10px;
-        padding: 8px 14px;
-        font-size: 13px;
-        font-weight: 600;
-        color: rgba(244, 246, 251, 0.7);
-        background: rgba(255, 255, 255, 0.04);
-        text-decoration: none;
-        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-      }
-
-      .admin-logout-link:hover {
-        background: rgba(255, 90, 90, 0.1);
-        border-color: rgba(255, 90, 90, 0.4);
-        color: #ff9d9d;
-      }
-
-      .admin-panel {
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(14px);
-      }
-
-      .admin-form {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      .admin-field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .admin-field label {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: rgba(244, 246, 251, 0.55);
-      }
-
-      .admin-field input,
-      .admin-field select {
-        appearance: none;
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        background: rgba(255, 255, 255, 0.06);
-        color: #f4f6fb;
-        border-radius: 10px;
-        padding: 10px 12px;
-        font-size: 14px;
-        outline: none;
-        transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-      }
-
-      .admin-field select option {
-        color: #0b1120;
-        background: #ffffff;
-      }
-
-      .admin-field input:focus,
-      .admin-field select:focus {
-        border-color: #6c8cff;
-        background: rgba(108, 140, 255, 0.1);
-        box-shadow: 0 0 0 3px rgba(108, 140, 255, 0.25);
-      }
-
-      .admin-field-error {
-        font-size: 12px;
-        color: #ff9d9d;
-      }
-
-      .admin-hint {
-        font-size: 12px;
-        color: rgba(244, 246, 251, 0.4);
-      }
-
-      .admin-submit {
-        margin-top: 8px;
-        border: none;
-        border-radius: 10px;
-        padding: 13px 16px;
-        font-size: 15px;
-        font-weight: 600;
-        color: #0b1120;
-        background: linear-gradient(135deg, #8fb2ff, #6c8cff);
-        cursor: pointer;
-        transition: filter 0.15s ease, box-shadow 0.15s ease;
-      }
-
-      .admin-submit:hover {
-        filter: brightness(1.05);
-        box-shadow: 0 10px 24px rgba(108, 140, 255, 0.35);
-      }
-
-      .admin-flash {
-        margin: 0 0 20px;
-        padding: 12px 16px;
-        border-radius: 10px;
-        font-size: 14px;
-      }
-
-      .admin-flash.error {
-        background: rgba(255, 90, 90, 0.12);
-        border: 1px solid rgba(255, 90, 90, 0.35);
-        color: #ff9d9d;
-      }
-
-      .admin-flash.info {
-        background: rgba(108, 140, 255, 0.12);
-        border: 1px solid rgba(108, 140, 255, 0.35);
-        color: #8fb2ff;
-      }
-    </style>
-
-    <div class="admin-page">
-      <div class="admin-shell">
-        <p
-          :if={msg = Phoenix.Flash.get(@flash, :error)}
-          id="flash-error"
-          phx-hook="AutoDismissFlash"
-          phx-click="lv:clear-flash"
-          phx-value-key="error"
-          class="admin-flash error"
-        >{msg}</p>
-        <p
-          :if={msg = Phoenix.Flash.get(@flash, :info)}
-          id="flash-info"
-          phx-hook="AutoDismissFlash"
-          phx-click="lv:clear-flash"
-          phx-value-key="info"
-          class="admin-flash info"
-        >{msg}</p>
-
-        <div class="admin-header">
-          <h1 class="admin-title">{if @live_action == :new, do: "Новый оператор", else: "Редактирование оператора"}</h1>
-          <div class="admin-header-actions">
-            <.link navigate={~p"/admin/operators"} class="admin-back-link">← К списку</.link>
-            <.link href={~p"/logout"} class="admin-logout-link">Выйти</.link>
+      <div class="adm-form-card">
+        <.form for={%{}} as={:operator} phx-submit="save" class="adm-form">
+          <div class="adm-field">
+            <label for="login">Логин</label>
+            <input type="text" id="login" name="operator[login]" value={@operator.login} required />
+            <span :if={msg = error_for(@errors, :login)} class="adm-field-error">{msg}</span>
           </div>
-        </div>
 
-        <div class="admin-panel">
-          <.form for={%{}} as={:operator} phx-submit="save" class="admin-form">
-            <div class="admin-field">
-              <label for="login">Логин</label>
-              <input type="text" id="login" name="operator[login]" value={@operator.login} required />
-              <span :if={msg = error_for(@errors, :login)} class="admin-field-error">{msg}</span>
-            </div>
+          <div class="adm-field">
+            <label for="name">Имя</label>
+            <input type="text" id="name" name="operator[name]" value={@operator.name} required />
+            <span :if={msg = error_for(@errors, :name)} class="adm-field-error">{msg}</span>
+          </div>
 
-            <div class="admin-field">
-              <label for="name">Имя</label>
-              <input type="text" id="name" name="operator[name]" value={@operator.name} required />
-              <span :if={msg = error_for(@errors, :name)} class="admin-field-error">{msg}</span>
-            </div>
+          <div class="adm-field">
+            <label for="purpose">Назначение</label>
+            <input type="text" id="purpose" name="operator[purpose]" value={@operator.purpose} />
+            <span :if={msg = error_for(@errors, :purpose)} class="adm-field-error">{msg}</span>
+          </div>
 
-            <div class="admin-field">
-              <label for="purpose">Назначение</label>
-              <input type="text" id="purpose" name="operator[purpose]" value={@operator.purpose} />
-              <span :if={msg = error_for(@errors, :purpose)} class="admin-field-error">{msg}</span>
-            </div>
+          <div class="adm-field">
+            <label for="role">Роль</label>
+            <select id="role" name="operator[role]" phx-change="role_changed">
+              <option value="admin" selected={@operator.role == "admin"}>Администратор</option>
+              <option value="data_provider" selected={@operator.role == "data_provider"}>Поставщик</option>
+              <option value="queries_only" selected={@operator.role == "queries_only"}>Потребитель</option>
+            </select>
+            <span :if={msg = error_for(@errors, :role)} class="adm-field-error">{msg}</span>
+          </div>
 
-            <div class="admin-field">
-              <label for="role">Роль</label>
-              <select id="role" name="operator[role]" phx-change="role_changed">
-                <option value="admin" selected={@operator.role == "admin"}>admin</option>
-                <option value="data_provider" selected={@operator.role == "data_provider"}>data_provider</option>
-                <option value="queries_only" selected={@operator.role == "queries_only"}>queries_only</option>
-              </select>
-              <span :if={msg = error_for(@errors, :role)} class="admin-field-error">{msg}</span>
-            </div>
+          <div :if={@operator.role == "data_provider"} class="adm-field">
+            <label for="org_id">Организация</label>
+            <select id="org_id" name="operator[org_id]">
+              <option
+                :for={org <- @orgs}
+                value={org.id}
+                selected={@operator.org_id == org.id}
+              >{org.org_name}</option>
+            </select>
+            <span :if={msg = error_for(@errors, :org_id)} class="adm-field-error">{msg}</span>
+          </div>
 
-            <div :if={@operator.role == "data_provider"} class="admin-field">
-              <label for="org_id">Организация</label>
-              <select id="org_id" name="operator[org_id]">
-                <option
-                  :for={org <- @orgs}
-                  value={org.id}
-                  selected={@operator.org_id == org.id}
-                >{org.org_name}</option>
-              </select>
-              <span :if={msg = error_for(@errors, :org_id)} class="admin-field-error">{msg}</span>
-            </div>
+          <div :if={@live_action == :edit} class="adm-field">
+            <label for="status">Статус</label>
+            <select id="status" name="operator[status]">
+              <option value="active" selected={@operator.status == "active"}>active</option>
+              <option value="blocked" selected={@operator.status == "blocked"}>blocked</option>
+            </select>
+            <span :if={msg = error_for(@errors, :status)} class="adm-field-error">{msg}</span>
+          </div>
 
-            <div :if={@live_action == :edit} class="admin-field">
-              <label for="status">Статус</label>
-              <select id="status" name="operator[status]">
-                <option value="active" selected={@operator.status == "active"}>active</option>
-                <option value="blocked" selected={@operator.status == "blocked"}>blocked</option>
-              </select>
-              <span :if={msg = error_for(@errors, :status)} class="admin-field-error">{msg}</span>
-            </div>
+          <div class="adm-field">
+            <label for="password">Пароль</label>
+            <input type="password" id="password" name="operator[password]" placeholder={if @live_action == :edit, do: "оставьте пустым, чтобы не менять", else: ""} required={@live_action == :new} />
+            <span :if={msg = error_for(@errors, :password)} class="adm-field-error">{msg}</span>
+            <span :if={@live_action == :edit} class="adm-hint">Оставьте пустым, если не хотите менять пароль</span>
+          </div>
 
-            <div class="admin-field">
-              <label for="password">Пароль</label>
-              <input type="password" id="password" name="operator[password]" placeholder={if @live_action == :edit, do: "оставьте пустым, чтобы не менять", else: ""} required={@live_action == :new} />
-              <span :if={msg = error_for(@errors, :password)} class="admin-field-error">{msg}</span>
-              <span :if={@live_action == :edit} class="admin-hint">Оставьте пустым, если не хотите менять пароль</span>
-            </div>
-
-            <button class="admin-submit" type="submit">
-              {if @live_action == :new, do: "Создать", else: "Сохранить"}
-            </button>
-          </.form>
-        </div>
+          <button class="adm-btn adm-btn-primary" type="submit">
+            {if @live_action == :new, do: "Создать", else: "Сохранить"}
+          </button>
+        </.form>
       </div>
-    </div>
+    </.admin_shell>
     """
   end
 end

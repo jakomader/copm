@@ -23,7 +23,7 @@ config :copm, CopmWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}],
   check_origin: false,
   code_reloader: true,
-  debug_errors: true,
+  debug_errors: false,
   secret_key_base: "BEA8xZLpMFXc17pdB3E/6AhpxrlLwVfnreJFD5PloBjpMhxhsY3CXWRB8Cwxp8+t",
   watchers: []
 

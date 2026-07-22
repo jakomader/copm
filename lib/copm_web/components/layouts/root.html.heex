@@ -6,6 +6,18 @@
     <meta name="csrf-token" content={Phoenix.Controller.get_csrf_token()} />
     <link rel="icon" type="image/png" href={~p"/settings.png"} />
     <title>Copm</title>
+    <script>
+      (function () {
+        var stored = localStorage.getItem("copm-theme");
+        document.documentElement.dataset.theme = stored === "light" ? "light" : "dark";
+      })();
+      window.copmToggleTheme = function () {
+        var root = document.documentElement;
+        var next = root.dataset.theme === "dark" ? "light" : "dark";
+        root.dataset.theme = next;
+        localStorage.setItem("copm-theme", next);
+      };
+    </script>
     <script defer src={~p"/js/phoenix_html.js"}>
     </script>
     <script defer src={~p"/js/phoenix.min.js"}>

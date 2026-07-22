@@ -182,7 +182,9 @@ defmodule Copm.Auth do
     dat = Map.get(attrs, :date, %{})
     Operators
     |> search_pattern(Map.get(attrs, :login))
+    |> search_name(Map.get(attrs, :name))
     |> check_role(Map.get(attrs, :role))
+    |> check_status(Map.get(attrs, :status))
     |> check_date(Map.get(dat,:from), Map.get(dat, :to))
     |> Repo.all()
     |> Repo.preload(:organization)
@@ -191,8 +193,14 @@ defmodule Copm.Auth do
   defp search_pattern(q, nil), do: q
   defp search_pattern(q, l), do: where(q, [o], ilike(o.login, ^"#{l}%"))
 
+  defp search_name(q, nil), do: q
+  defp search_name(q, n), do: where(q, [o], ilike(o.name, ^"#{n}%"))
+
   defp check_role(q, nil), do: q
   defp check_role(q, r), do: where(q, [o], o.role == ^r)
+
+  defp check_status(q, nil), do: q
+  defp check_status(q, s), do: where(q, [o], o.status == ^s)
 
   defp check_date(q, nil, nil), do: q
   defp check_date(q, f, t), do: where(q, [o], o.inserted_at > ^f and o.inserted_at < ^t)

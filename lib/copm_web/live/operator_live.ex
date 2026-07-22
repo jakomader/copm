@@ -1,18 +1,22 @@
 defmodule CopmWeb.OperatorLive do
   use CopmWeb, :live_view
   alias Copm.Auth
+  import CopmWeb.Components.AdminLayout
   on_mount {CopmWeb.RequireAdminHook, :default}
 
   def mount(_params, _session, socket) do
+    filters = %{"login" => "", "name" => "", "status" => "", "date_from" => "", "date_to" => ""}
+
     socket =
       socket
-      |> assign(filters: %{login: "", role: "", date_from: "", date_to: ""})
-      |> assign(operators: Auth.list_operators(%{}))
+      |> assign(filters: filters)
+      |> assign(operators: Auth.list_operators(build_filters(filters, socket.assigns.live_action)))
+
     {:ok, socket}
   end
 
   def handle_event("filter", %{"filters" => raw}, socket) do
-    operators = Auth.list_operators(raw |> manage_filters())
+    operators = Auth.list_operators(build_filters(raw, socket.assigns.live_action))
 
     socket =
       socket
@@ -33,7 +37,7 @@ defmodule CopmWeb.OperatorLive do
           nil -> put_flash(socket, :error, "Operator was not found")
           operator ->
             Auth.block_user(operator)
-          filters = manage_filters(socket.assigns.filters)
+          filters = build_filters(socket.assigns.filters, socket.assigns.live_action)
           socket
           |> put_flash(:info, "Оператор был успешно заблокирован")
           |> assign(operators: Auth.list_operators(filters))
@@ -55,7 +59,7 @@ defmodule CopmWeb.OperatorLive do
           nil -> put_flash(socket, :error, "Operator was not found")
           operator ->
             Auth.delete_user(operator)
-          filters = manage_filters(socket.assigns.filters)
+          filters = build_filters(socket.assigns.filters, socket.assigns.live_action)
           socket
           |> put_flash(:info, "Оператор был успешно удалён")
           |> assign(operators: Auth.list_operators(filters))
@@ -67,10 +71,12 @@ defmodule CopmWeb.OperatorLive do
     {:noreply, socket}
   end
 
-  defp manage_filters(raw) do
+  defp build_filters(raw, live_action) do
     %{
       login: blank_to_nil(raw["login"]),
-      role: blank_to_nil(raw["role"]),
+      name: blank_to_nil(raw["name"]),
+      role: role_for(live_action),
+      status: blank_to_nil(raw["status"]),
       date: %{
         from: parse_date(raw["date_from"]),
         to: parse_date(raw["date_to"])
@@ -91,348 +97,111 @@ defmodule CopmWeb.OperatorLive do
     end
   end
 
+  defp role_for(:admins), do: "admin"
+  defp role_for(:suppliers), do: "data_provider"
+  defp role_for(:consumers), do: "queries_only"
+
+  defp section_title(:admins), do: "Администраторы"
+  defp section_title(:suppliers), do: "Поставщики"
+  defp section_title(:consumers), do: "Потребители"
+
   def render(assigns) do
     ~H"""
-    <style>
-      body {
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      }
+    <.admin_shell
+      active={@live_action}
+      current_operator={@current_operator}
+      title={section_title(@live_action)}
+      count={length(@operators)}
+      flash={@flash}
+    >
+      <:actions>
+        <.link navigate={~p"/admin/users/new?role=#{role_for(@live_action)}"} class="adm-icon-btn" title="Добавить пользователя">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round" /></svg>
+        </.link>
+      </:actions>
 
-      .admin-page {
-        min-height: 100vh;
-        background: radial-gradient(circle at top, #1e2a4a 0%, #0b1120 65%);
-        padding: 32px 16px;
-        color: #f4f6fb;
-      }
-
-      .admin-shell {
-        max-width: 1080px;
-        margin: 0 auto;
-      }
-
-      .admin-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-
-      .admin-title {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-      }
-
-      .admin-create-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border: none;
-        border-radius: 10px;
-        padding: 11px 18px;
-        font-size: 14px;
-        font-weight: 600;
-        color: #0b1120;
-        background: linear-gradient(135deg, #8fb2ff, #6c8cff);
-        text-decoration: none;
-        transition: filter 0.15s ease, box-shadow 0.15s ease;
-      }
-
-      .admin-create-link:hover {
-        filter: brightness(1.05);
-        box-shadow: 0 10px 24px rgba(108, 140, 255, 0.35);
-      }
-
-      .admin-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .admin-logout-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 10px;
-        padding: 10px 16px;
-        font-size: 14px;
-        font-weight: 600;
-        color: rgba(244, 246, 251, 0.7);
-        background: rgba(255, 255, 255, 0.04);
-        text-decoration: none;
-        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-      }
-
-      .admin-logout-link:hover {
-        background: rgba(255, 90, 90, 0.1);
-        border-color: rgba(255, 90, 90, 0.4);
-        color: #ff9d9d;
-      }
-
-      .admin-panel {
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(14px);
-      }
-
-      .admin-filters {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 14px;
-        margin-bottom: 20px;
-      }
-
-      .admin-field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .admin-field label {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: rgba(244, 246, 251, 0.55);
-      }
-
-      .admin-field input,
-      .admin-field select {
-        appearance: none;
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        background: rgba(255, 255, 255, 0.06);
-        color: #f4f6fb;
-        border-radius: 10px;
-        padding: 10px 12px;
-        font-size: 14px;
-        outline: none;
-      }
-
-      .admin-field select option {
-        color: #0b1120;
-        background: #ffffff;
-        transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-      }
-
-      .admin-field input:focus,
-      .admin-field select:focus {
-        border-color: #6c8cff;
-        background: rgba(108, 140, 255, 0.1);
-        box-shadow: 0 0 0 3px rgba(108, 140, 255, 0.25);
-      }
-
-      .admin-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-      }
-
-      .admin-table th {
-        text-align: left;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: rgba(244, 246, 251, 0.5);
-        padding: 10px 12px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-      }
-
-      .admin-table td {
-        padding: 12px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        vertical-align: middle;
-      }
-
-      .admin-badge {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-      }
-
-      .admin-badge.active {
-        background: rgba(90, 220, 140, 0.15);
-        color: #7ef0ab;
-      }
-
-      .admin-badge.blocked {
-        background: rgba(255, 90, 90, 0.15);
-        color: #ff9d9d;
-      }
-
-      .admin-row-actions {
-        display: flex;
-        gap: 8px;
-        justify-content: flex-end;
-      }
-
-      .admin-action-btn {
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        background: rgba(255, 255, 255, 0.06);
-        color: #f4f6fb;
-        border-radius: 8px;
-        padding: 6px 12px;
-        font-size: 13px;
-        cursor: pointer;
-        text-decoration: none;
-        transition: background 0.15s ease, border-color 0.15s ease;
-      }
-
-      .admin-action-btn:hover {
-        background: rgba(108, 140, 255, 0.15);
-        border-color: #6c8cff;
-      }
-
-      .admin-action-btn.danger:hover {
-        background: rgba(255, 90, 90, 0.15);
-        border-color: rgba(255, 90, 90, 0.5);
-      }
-
-      .admin-empty {
-        text-align: center;
-        padding: 32px;
-        color: rgba(244, 246, 251, 0.5);
-      }
-
-      .admin-flash {
-        margin: 0 0 20px;
-        padding: 12px 16px;
-        border-radius: 10px;
-        font-size: 14px;
-      }
-
-      .admin-flash.error {
-        background: rgba(255, 90, 90, 0.12);
-        border: 1px solid rgba(255, 90, 90, 0.35);
-        color: #ff9d9d;
-      }
-
-      .admin-flash.info {
-        background: rgba(108, 140, 255, 0.12);
-        border: 1px solid rgba(108, 140, 255, 0.35);
-        color: #8fb2ff;
-      }
-    </style>
-
-    <div class="admin-page">
-      <div class="admin-shell">
-        <p
-          :if={msg = Phoenix.Flash.get(@flash, :error)}
-          id="flash-error"
-          phx-hook="AutoDismissFlash"
-          phx-click="lv:clear-flash"
-          phx-value-key="error"
-          class="admin-flash error"
-        >{msg}</p>
-        <p
-          :if={msg = Phoenix.Flash.get(@flash, :info)}
-          id="flash-info"
-          phx-hook="AutoDismissFlash"
-          phx-click="lv:clear-flash"
-          phx-value-key="info"
-          class="admin-flash info"
-        >{msg}</p>
-
-        <div class="admin-header">
-          <h1 class="admin-title">Операторы</h1>
-          <div class="admin-header-actions">
-            <.link navigate={~p"/admin/operators/new"} class="admin-create-link">+ Создать оператора</.link>
-            <.link navigate={~p"/admin/orgs"} class="admin-create-link">Организации</.link>
-            <.link href={~p"/logout"} class="admin-logout-link">Выйти</.link>
-          </div>
-        </div>
-
-        <div class="admin-panel">
+      <div class="adm-table-wrap">
           <form phx-change="filter">
-            <div class="admin-filters">
-              <div class="admin-field">
-                <label for="filter_login">Логин</label>
-                <input type="text" id="filter_login" name="filters[login]" value={@filters["login"]} placeholder="Поиск по логину" />
-              </div>
-              <div class="admin-field">
-                <label for="filter_role">Роль</label>
-                <select id="filter_role" name="filters[role]">
-                  <option value="" selected={@filters["role"] in [nil, ""]}>Все роли</option>
-                  <option value="admin" selected={@filters["role"] == "admin"}>admin</option>
-                  <option value="data_provider" selected={@filters["role"] == "data_provider"}>data_provider</option>
-                  <option value="queries_only" selected={@filters["role"] == "queries_only"}>queries_only</option>
-                </select>
-              </div>
-              <div class="admin-field">
-                <label for="filter_date_from">Добавлен с</label>
-                <input type="date" id="filter_date_from" name="filters[date_from]" value={@filters["date_from"]} />
-              </div>
-              <div class="admin-field">
-                <label for="filter_date_to">Добавлен по</label>
-                <input type="date" id="filter_date_to" name="filters[date_to]" value={@filters["date_to"]} />
-              </div>
-            </div>
+            <table class="adm-table">
+              <thead>
+                <tr>
+                  <th>Логин</th>
+                  <th>Имя</th>
+                  <th>Статус</th>
+                  <th :if={@live_action == :suppliers}>Организация</th>
+                  <th>Добавлен</th>
+                  <th></th>
+                </tr>
+                <tr class="adm-filter-row">
+                  <th>
+                    <label class="adm-search">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>
+                      <input type="text" name="filters[login]" value={@filters["login"]} placeholder="Поиск" />
+                    </label>
+                  </th>
+                  <th>
+                    <label class="adm-search">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>
+                      <input type="text" name="filters[name]" value={@filters["name"]} placeholder="Поиск" />
+                    </label>
+                  </th>
+                  <th>
+                    <label class="adm-search">
+                      <select name="filters[status]">
+                        <option value="" selected={@filters["status"] in [nil, ""]}>Все</option>
+                        <option value="active" selected={@filters["status"] == "active"}>active</option>
+                        <option value="blocked" selected={@filters["status"] == "blocked"}>blocked</option>
+                      </select>
+                    </label>
+                  </th>
+                  <th :if={@live_action == :suppliers}></th>
+                  <th>
+                    <div style="display:flex; gap:6px;">
+                      <label class="adm-search"><input type="date" name="filters[date_from]" value={@filters["date_from"]} /></label>
+                      <label class="adm-search"><input type="date" name="filters[date_to]" value={@filters["date_to"]} /></label>
+                    </div>
+                  </th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={operator <- @operators}>
+                  <td>{operator.login}</td>
+                  <td>{operator.name}</td>
+                  <td><span class={"adm-badge #{operator.status}"}>{operator.status}</span></td>
+                  <td :if={@live_action == :suppliers}>{if operator.organization, do: operator.organization.org_name, else: "-"}</td>
+                  <td>{Calendar.strftime(operator.inserted_at, "%d.%m.%Y")}</td>
+                  <td class="adm-col-actions">
+                    <div class="adm-row-actions">
+                      <.link navigate={~p"/admin/users/#{operator.id}/edit"} class="adm-btn adm-btn-ghost adm-btn-sm">
+                        Изменить
+                      </.link>
+                      <button
+                        class="adm-btn adm-btn-ghost adm-btn-sm"
+                        phx-click="block"
+                        phx-value-id={operator.id}
+                        disabled={operator.status == "blocked"}
+                      >
+                        Заблокировать
+                      </button>
+                      <button
+                        class="adm-btn adm-btn-danger adm-btn-sm"
+                        phx-click="delete"
+                        phx-value-id={operator.id}
+                        data-confirm="Удалить пользователя безвозвратно?"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </form>
 
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Логин</th>
-                <th>Имя</th>
-                <th>Роль</th>
-                <th>Статус</th>
-                <th>Добавлен</th>
-                <th>Организация</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={operator <- @operators}>
-                <td>{operator.id}</td>
-                <td>{operator.login}</td>
-                <td>{operator.name}</td>
-                <td>{operator.role}</td>
-                <td>
-                  <span class={"admin-badge #{operator.status}"}>{operator.status}</span>
-                </td>
-                <td>{Calendar.strftime(operator.inserted_at, "%d.%m.%Y")}</td>
-                <td>{if operator.organization, do: operator.organization.org_name, else: "-"}</td>
-                <td>
-                  <div class="admin-row-actions">
-                    <.link navigate={~p"/admin/operators/#{operator.id}/edit"} class="admin-action-btn">
-                      Изменить
-                    </.link>
-                    <button
-                      class="admin-action-btn"
-                      phx-click="block"
-                      phx-value-id={operator.id}
-                      disabled={operator.status == "blocked"}
-                    >
-                      Заблокировать
-                    </button>
-                    <button
-                      class="admin-action-btn danger"
-                      phx-click="delete"
-                      phx-value-id={operator.id}
-                      data-confirm="Удалить оператора безвозвратно?"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <p :if={@operators == []} class="admin-empty">Операторы не найдены</p>
+          <p :if={@operators == []} class="adm-empty">Пользователи не найдены</p>
         </div>
-      </div>
-    </div>
+    </.admin_shell>
     """
   end
 end
