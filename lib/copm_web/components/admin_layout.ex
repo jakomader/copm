@@ -63,6 +63,7 @@ defmodule CopmWeb.Components.AdminLayout do
         --adm-flash-info-text: #8fb2ff;
         --adm-logo-bg: #101114;
         --adm-logo-text: #f2f3f7;
+        --adm-resize:#26262a;
       }
 
       :root[data-theme="light"] {
@@ -92,6 +93,7 @@ defmodule CopmWeb.Components.AdminLayout do
         --adm-flash-info-text: #3d5bd9;
         --adm-logo-bg: #14151a;
         --adm-logo-text: #ffffff;
+        --adm-resize:rgba(20, 21, 26, 0.46);
       }
 
       .adm-shell {
@@ -103,8 +105,6 @@ defmodule CopmWeb.Components.AdminLayout do
 
       /* sidebar */
       .adm-sidebar {
-        width: 260px;
-        flex: 0 0 260px;
         background: var(--adm-sidebar-bg);
         border-right: 1px solid var(--adm-border);
         display: flex;
@@ -673,7 +673,6 @@ defmodule CopmWeb.Components.AdminLayout do
         left: -15px;
       }
       .adm-logo-git{
-        border-radius:50%;
         display:flex;
         align-items:center;
         transform:translateY(1px);
@@ -683,6 +682,7 @@ defmodule CopmWeb.Components.AdminLayout do
       .adm-logo-git img{
         width: 20px;
         border-radius:50%;
+        margin-right:3px;
       }
       .adm-logo-git span{
         font-size: 12.5px;
@@ -691,10 +691,17 @@ defmodule CopmWeb.Components.AdminLayout do
         white-space: nowrap;
 
       }
+      .resizer {
+        width: 4px;
+        cursor: col-resize;
+        background-color:var(--adm-resize);
+        transition: background-color 0.2s;
+        user-select: none;
+      }
     </style>
 
     <div class="adm-shell">
-      <aside class="adm-sidebar">
+      <aside class="adm-sidebar" id="sidebar">
         <div class="adm-logo">
           <div class="adm-logo-mark">DB</div>
           <span class="adm-logo-text">Data Bus</span>
@@ -759,7 +766,8 @@ defmodule CopmWeb.Components.AdminLayout do
           </.link>
         </div>
       </aside>
-
+      
+      <div id="resizer" class="resizer"></div>
       <div class="adm-main">
         <p
           :if={msg = Phoenix.Flash.get(@flash, :error)}
@@ -793,6 +801,43 @@ defmodule CopmWeb.Components.AdminLayout do
         </div>
       </div>
     </div>
+    <script>
+      const sidebar = document.getElementById('sidebar');
+      const resizer = document.getElementById('resizer');
+
+      let isResizing = false;
+
+      resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        resizer.classList.add('resizing');
+        
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        const minWidth = 280;
+        const maxWidth = 800;
+        let newWidth = e.clientX;
+
+        if (newWidth < minWidth) newWidth = minWidth;
+        if (newWidth > maxWidth) newWidth = maxWidth;
+
+        sidebar.style.width = `${newWidth}px`;
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isResizing) {
+          isResizing = false;
+          resizer.classList.remove('resizing');
+          document.body.style.cursor = 'default';
+          document.body.style.removeProperty('user-select');
+        }
+      });
+
+    </script>
     """
   end
 
