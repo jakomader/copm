@@ -93,7 +93,7 @@ defmodule CopmWeb.Components.AdminLayout do
         --adm-flash-info-text: #3d5bd9;
         --adm-logo-bg: #14151a;
         --adm-logo-text: #ffffff;
-        --adm-resize:rgba(20, 21, 26, 0.46);
+        --adm-resize:rgba(20, 21, 26, 0.2);
       }
 
       .adm-shell {
